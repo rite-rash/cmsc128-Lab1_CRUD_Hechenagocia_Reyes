@@ -1,60 +1,64 @@
-// DESCRIPTION: serves as cards pertaining to each indiv tasks
+// DESCRIPTION: Modular card component for displaying individual tasks
 
-// function TodoItem (props){
+function TodoItem({ task }) {
 
+    const handleEditClick = () => {
+        console.log("working click", task.id);
+    };
 
-//     return(
-//         <div className="p-4 rounded-lg bg-pink-800 text-slate-100 shadow">
-//             <p>{props.taskName}</p>
-//         </div>
-//     );
-// }
+    const handleDeleteClick = () => {
+        console.log("Delete clicked for task:", task.id);
+    };
 
-// export default TodoItem;
-
-
-
-function TodoItem({ task, onEdit, onDelete }) {
     return (
-    <div className="flex items-start gap-4 p-4 rounded-xl bg-pink-950/60 border border-pink-800/40 text-slate-100 shadow-sm transition-all hover:border-pink-700/60">      
-    {/* checkbox */}
-        <input 
-        type="checkbox" 
-        checked={task.status === 'completed'}
-        readOnly
-        className="w-5 h-5 shrink-0 mt-0.5 accent-pink-500 rounded cursor-default"
-        />
+    <div className="p-4 bg-[#7a3755] text-white rounded-2xl flex items-center justify-between shadow-md hover:bg-[#863e5f] transition-all">
+        <div className="flex items-center gap-3">
 
-        <div className="flex flex-col">
-        <span className={`text-sm font-medium ${task.status === 'completed' ? 'line-through text-pink-400/50' : 'text-slate-100'}`}>
-            {task.title}
-        </span>
-        <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-xs text-pink-300/60">{task.dueDate}</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                task.status === 'completed' ? 'bg-pink-900/60 text-pink-300' :
-                task.status === 'in progress' ? 'bg-pink-900/60 text-amber-100' :'bg-slate-800/60 text-slate-300'
-        }`}>
-            {task.status}
-            </span>
+        <div className="flex flex-col gap-1">
+            <h3 className={`font-bold text-sm md:text-base tracking-wide ${task.status === 'done' ?'line-through text-pink-200/50' : ''}`}>
+            {task.taskName}
+            </h3>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs text-pink-200/80">
+                {/* due date, time */}
+                <span>{task.dueDate} • {task.dueTime}</span>
+                
+                {/*status*/}
+                <span className="bg-[#59243e] px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">
+                {task.status}
+                </span>
+
+                {/*priorty*/}
+                <span className="bg-[#59243e] px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">
+                {task.priority}
+                </span>
+
+                {/* categ */}
+                <span className="bg-[#59243e] px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">
+                {task.category}
+                </span>
+            </div>
         </div>
-        </div>
-        <div className="group-hover:opacity-100 transition-opacity flex items-center gap-2 shrink-0">
+    </div>
+
+        {/* buttons for del and edit*/}
+        <div className="flex items-center gap-2 shrink-0">
             <button 
-                onClick={() => onEdit && onEdit(task)}
-                className="p-1.5 text-xs text-pink-300 hover:text-white bg-pink-900/50 hover:bg-pink-800 rounded-lg transition-colors cursor-pointer"
+            onClick={handleEditClick}
+            className="px-2.5 py-1 text-xs text-pink-100 hover:text-white bg-[#59243e] hover:bg-pink-600 rounded-lg transition-colors cursor-pointer"
             >
-                Edit
+            Edit
             </button>
             <button 
-                onClick={() => onDelete && onDelete(task.id)}
-                className="p-1.5 text-xs text-rose-300 hover:text-white bg-rose-950/50 hover:bg-pinkee-900 rounded-lg transition-colors cursor-pointer"
+            onClick={handleDeleteClick}
+            className="px-2.5 py-1 text-xs text-rose-200 hover:text-white bg-rose-900/60 hover:bg-rose-700 rounded-lg transition-colors cursor-pointer"
             >
-                Delete
+            Delete
             </button>
         </div>
     </div>
     );
 }
+
 
 export default TodoItem;
