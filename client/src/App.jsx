@@ -1,41 +1,110 @@
 // DESCRIPTION: Controls app structure, state management, and persistence
 
 import { useState, useEffect } from 'react';
+
+
+import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc,
+  doc,
+  serverTimestamp 
+} from "firebase/firestore";
+import { auth, db } from "./firebaseConfig";
+
+
 import Layout from './components/Layout';
 import TodoForm from './components/TodoForm';
 import TodoItem from './components/TodoItem';
 
 function App() {
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('my_todo_tasks');
-    return savedTasks ? JSON.parse(savedTasks) : [];
-  });
+  const [user, setUser] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // anonymous auth
+  useEffect(() => {
+    signInAnonymously(auth).catch((err) => console.error("Auth error:", err));
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
 
   useEffect(() => {
-    localStorage.setItem('my_todo_tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (!user) return; //create anonym user first before fetching task
 
-  // add task
-  const handleAddTask = (newTaskData) => {
-    if (!newTaskData.taskName || !newTaskData.taskName.trim()) return;
-    const newTask = {
-      id: crypto.randomUUID(),
-      ...newTaskData,
-    };
-
-    setTasks((prevTasks) => [...prevTasks, newTask]);
-  };
-
-//toggle status
-  const handleToggleStatus = (taskId) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId
-          ? { ...task, status: task.status === 'done' ? 'not started' : 'done' }
-          : task
-      )
+    // listen only to tasks belonging to this user's UID
+    const q = query(
+      collection(db, "tasks"),
+      where("userId", "==", user.uid)
     );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedTasks = snapshot.docs.map((document) => ({
+        id: document.id,
+        ...document.data(),
+      }));
+      setTasks(fetchedTasks);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore Listener Error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // add task to firestore
+  const handleAddTask = async (newTaskData) => {
+    if (!newTaskData.taskName || !newTaskData.taskName.trim() || !user) return;
+
+    try {
+      await addDoc(collection(db, "tasks"), {
+        taskName: newTaskData.taskName,
+        status: newTaskData.status || 'not started',
+        priority: newTaskData.priority || 'Low',     
+        category: newTaskData.category || 'General', 
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Error adding task:", err);
+    }
   };
+
+  // Toggle task status in Firestore
+  const handleToggleStatus = async (taskId) => {
+    const targetTask = tasks.find((t) => t.id === taskId);
+    if (!targetTask) return;
+
+    const nextStatus = targetTask.status === 'done' ? 'not started' : 'done';
+    const taskRef = doc(db, "tasks", taskId);
+
+    try {
+      await updateDoc(taskRef, { status: nextStatus });
+    } catch (err) {
+      console.error("Error updating status:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="text-white text-center py-20 font-semibold">
+          Loading your tasks...
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -66,7 +135,7 @@ function App() {
         <div className="flex flex-col gap-3 min-h-[200px] max-h-[450px] overflow-y-auto pr-1">
           {tasks.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-pink-200/60 font-medium text-sm py-12">
-              No tasks added yet. create now!
+              No tasks added yet. Create now!
             </div>
           ) : (
             tasks.map((task) => (
@@ -78,7 +147,6 @@ function App() {
             ))
           )}
         </div>
-
 
         <TodoForm onSubmit={handleAddTask} buttonText="Add Task" />
 
