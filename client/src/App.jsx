@@ -11,6 +11,7 @@ import {
   onSnapshot, 
   addDoc, 
   updateDoc,
+  deleteDoc,
   doc,
   serverTimestamp 
 } from "firebase/firestore";
@@ -25,6 +26,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pendingDeletes, setPendingDeletes] = useState({});
+  const [editingTask, setEditingTask] = useState(null);
 
   // anonymous auth
   useEffect(() => {
@@ -96,6 +99,57 @@ function App() {
     }
   };
 
+  const handleDeleteTask = (taskId) => {
+    if (pendingDeletes[taskId]) return; 
+
+    const timeoutId = setTimeout(async () => {
+      const taskRef = doc(db, "tasks", taskId);
+      try {
+        await deleteDoc(taskRef);
+      } catch (err) {
+        console.error("Error deleting task:", err);
+      }
+      setPendingDeletes((prev) => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
+    }, 5000);
+
+    setPendingDeletes((prev) => ({ ...prev, [taskId]: timeoutId }));
+  };
+
+  const handleUndoDelete = (taskId) => {
+    const timeoutId = pendingDeletes[taskId];
+    if (timeoutId) clearTimeout(timeoutId);
+
+    setPendingDeletes((prev) => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+  };
+
+  const handleStartEdit = (task) => {
+    setEditingTask(task);
+  };
+
+  const handleUpdateTask = async (updatedData) => {
+    if (!editingTask) return;
+    const taskRef = doc(db, "tasks", editingTask.id);
+    try {
+      await updateDoc(taskRef, updatedData);
+      setEditingTask(null);
+    } catch (err) {
+      console.error("Error updating task:", err);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTask(null);
+  };
+
+
   if (loading) {
     return (
       <Layout>
@@ -143,12 +197,26 @@ function App() {
                 key={task.id} 
                 task={task} 
                 onToggleStatus={handleToggleStatus}
+                onDelete={handleDeleteTask}
+                onUndo={handleUndoDelete}
+                onEdit={handleStartEdit}
+                isPendingDelete={!!pendingDeletes[[task.id]]}
               />
             ))
           )}
         </div>
 
-        <TodoForm onSubmit={handleAddTask} buttonText="Add Task" />
+        {editingTask ? (
+          <TodoForm 
+            key={editingTask.id}
+            initialValues={editingTask} 
+            onSubmit={handleUpdateTask} 
+            onCancel={handleCancelEdit}
+            buttonText="Save Changes" 
+          />
+        ) : (
+          <TodoForm key="new" onSubmit={handleAddTask} buttonText="Add Task" />
+        )}
 
       </div>
     </Layout>

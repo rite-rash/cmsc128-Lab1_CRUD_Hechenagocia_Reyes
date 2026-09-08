@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-function TodoForm({ initialValues = {}, onSubmit, buttonText = 'Add Task' }) {
+function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Task' }) {
     const today = new Date().toISOString().split('T')[0];
 
     const [taskName, setTaskName] = useState(initialValues.taskName || '');
@@ -96,12 +96,24 @@ function TodoForm({ initialValues = {}, onSubmit, buttonText = 'Add Task' }) {
                 <option value="done">Done</option>
             </select>
 
-            
-            <button
-                type="submit"
-                className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
-            > {buttonText}
-            </button>
+            {/* submit + cancel */}
+            <div className="flex gap-2">
+                <button
+                    type="submit"
+                    className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
+                > {buttonText}
+                </button>
+
+                {onCancel && (
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="bg-[#6e324c] hover:bg-[#59243e] text-pink-100 font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
+                    >
+                        Cancel
+                    </button>
+                )}
+            </div>
         </form>
     );
 }
