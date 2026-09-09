@@ -1,4 +1,4 @@
-Lab1 - Todo List (CRUD)
+# CMSC128 Lab1 - Todo List (CRUD)
  
 A todo list app with full CRUD functionality, built for CMSC128 Lab 1 by Trisha Mae Hechenagocia & Aleighia Keith Reyes.
 
