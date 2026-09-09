@@ -24,10 +24,10 @@ function App() {
   const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pendingDeletes, setPendingDeletes] = useState({});
-  const [editingTask, setEditingTask] = useState(null);
-  const [taskToDelete, setTaskToDelete] = useState(null);
-  const [sortBy, setSortBy] = useState('dateAdded');
+  const [pendingDeletes, setPendingDeletes] = useState({}); // taskId -> timeoutId, tracks tasks in their undo window
+  const [editingTask, setEditingTask] = useState(null); // task currently being edited, or null
+  const [taskToDelete, setTaskToDelete] = useState(null); // taskId awaiting delete confirmation, or null
+  const [sortBy, setSortBy] = useState('dateAdded'); // current sort key for task list
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortMenuRef = useRef(null);
 
@@ -38,10 +38,11 @@ function App() {
     { value: 'category', label: 'Category' },
   ];
 
-  // anonymous auth
+  // FIREBASE: sign the user in anonymously so tasks can be scoped to a uid
   useEffect(() => {
     signInAnonymously(auth).catch((err) => console.error("Auth error:", err));
 
+    // FIREBASE: keep local user state synced with auth state
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) setLoading(false);
@@ -51,6 +52,7 @@ function App() {
   }, []);
 
 
+  // FIREBASE: subscribe to this user's tasks in Firestore and keep state in sync in real time
   useEffect(() => {
     if (!user) return; //create anonym user first before fetching task
 
@@ -107,7 +109,7 @@ function App() {
     }
   };
 
-  // Toggle task status in Firestore
+  // FIREBASE: flip a task's status between 'done' and 'not started' in Firestore
   const handleToggleStatus = async (taskId) => {
     const targetTask = tasks.find((t) => t.id === taskId);
     if (!targetTask) return;
@@ -122,31 +124,32 @@ function App() {
     }
   };
 
-  // called when the user clicks the delete icon on a task
+  // DELETE: called when the user clicks the delete icon on a task; opens the confirmation dialog
   const handleRequestDelete = (taskId) => {
     setTaskToDelete(taskId);
   };
 
-  // called when the user confirms in the dialog
+  // DELETE: called when the user confirms in the dialog; kicks off the actual (undo-able) delete
   const handleConfirmDelete = () => {
     if (taskToDelete) {
-      handleDeleteTask(taskToDelete); // your existing function, unchanged
+      handleDeleteTask(taskToDelete); // existing soft-delete flow, unchanged
     }
     setTaskToDelete(null);
   };
 
-  // called when the user cancels
+  // DELETE: called when the user cancels the dialog; just closes it, nothing is deleted
   const handleCancelDelete = () => {
     setTaskToDelete(null);
   };
 
+  // DELETE / FIREBASE: starts a 5s undo window before permanently removing the task from Firestore
   const handleDeleteTask = (taskId) => {
     if (pendingDeletes[taskId]) return; 
 
     const timeoutId = setTimeout(async () => {
       const taskRef = doc(db, "tasks", taskId);
       try {
-        await deleteDoc(taskRef);
+        await deleteDoc(taskRef); // FIREBASE: permanent removal once the undo window expires
       } catch (err) {
         console.error("Error deleting task:", err);
       }
@@ -160,6 +163,7 @@ function App() {
     setPendingDeletes((prev) => ({ ...prev, [taskId]: timeoutId }));
   };
 
+  // UNDO: cancels a pending delete's timeout before it fires, keeping the task alive
   const handleUndoDelete = (taskId) => {
     const timeoutId = pendingDeletes[taskId];
     if (timeoutId) clearTimeout(timeoutId);
@@ -171,10 +175,12 @@ function App() {
     });
   };
 
+  // EDIT: puts a task into edit mode, pre-filling the shared TodoForm
   const handleStartEdit = (task) => {
     setEditingTask(task);
   };
 
+  // EDIT / FIREBASE: saves the edited fields to Firestore and exits edit mode
   const handleUpdateTask = async (updatedData) => {
     if (!editingTask) return;
     const taskRef = doc(db, "tasks", editingTask.id);
@@ -186,12 +192,15 @@ function App() {
     }
   };
 
+  // EDIT: exits edit mode without saving
   const handleCancelEdit = () => {
     setEditingTask(null);
   };
 
+  // SORT: priority rank used when sorting by priority (lower = higher priority)
   const priorityOrder = { high: 0, medium: 1, low: 2 };
 
+  // SORT: derives a sorted copy of tasks based on the currently selected sortBy key
   const sortedTasks = [...tasks].sort((a, b) => {
     switch (sortBy) {
       case 'dueDate':
@@ -241,7 +250,7 @@ function App() {
           </div>
         </div>
 
-        {/* sorting options */}
+        {/* SORT: dropdown for choosing the active sortBy key */}
         <div className="relative w-fit" ref={sortMenuRef}>
           <button
             onClick={() => setSortMenuOpen((prev) => !prev)}
@@ -273,7 +282,7 @@ function App() {
           )}
         </div>
 
-        {/* task cards */}
+        {/* task cards, rendered in sorted order */}
         <div className="flex flex-col gap-3 min-h-[200px] max-h-[450px] overflow-y-auto pr-1">
           {tasks.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-pink-200/60 font-medium text-sm py-12">
@@ -294,6 +303,7 @@ function App() {
           )}
         </div>
 
+        {/* EDIT: reuses TodoForm — pre-filled when editingTask is set, blank otherwise */}
         {editingTask ? (
           <TodoForm 
             key={editingTask.id}
@@ -308,6 +318,7 @@ function App() {
 
       </div>
 
+      {/* DELETE: confirmation modal, shown only while a task is awaiting confirmation */}
       {taskToDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[#bc688c] rounded-2xl shadow-2xl p-6 w-80 flex flex-col gap-4">
