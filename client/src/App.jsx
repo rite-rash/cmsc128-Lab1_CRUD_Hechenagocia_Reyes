@@ -274,9 +274,9 @@ function App() {
               className="bg-transparent text-pink-100 px-2 py-1 rounded-lg outline-none cursor-pointer"
             >
               <option value="all">Priority</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
             </select>
 
             <select
@@ -285,10 +285,10 @@ function App() {
               className="bg-transparent text-pink-100 px-2 py-1 rounded-lg outline-none cursor-pointer"
             >
               <option value="all">Category</option>
-              <option value="School">School</option>
-              <option value="Personal">Personal</option>
-              <option value="Work">Work</option>
-              <option value="Others">Others</option>
+              <option value="school">School</option>
+              <option value="personal">Personal</option>
+              <option value="work">Work</option>
+              <option value="others">Others</option>  
             </select>
           </div>
         </div>
