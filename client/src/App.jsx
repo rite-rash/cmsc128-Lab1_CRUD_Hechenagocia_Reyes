@@ -29,6 +29,8 @@ function App() {
   const [taskToDelete, setTaskToDelete] = useState(null); // taskId awaiting delete confirmation, or null
   const [sortBy, setSortBy] = useState('dateAdded'); // current sort key for task list
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [priorityFilter, setFilterByPriority] = useState('all');
+  const [categoryFilter, setFilterByCategory] = useState('all');
   const sortMenuRef = useRef(null);
 
   const sortOptions = [
@@ -56,7 +58,7 @@ function App() {
   useEffect(() => {
     if (!user) return; //create anonym user first before fetching task
 
-    // listen only to tasks belonging to this user's UID
+    // get tasks from that userId 
     const q = query(
       collection(db, "tasks"),
       where("userId", "==", user.uid)
@@ -100,9 +102,11 @@ function App() {
         dueTime: newTaskData.dueTime,
         status: newTaskData.status || 'not started',
         priority: newTaskData.priority || 'Low',     
-        category: newTaskData.category || 'General', 
+        category: newTaskData.category || 'School', 
         userId: user.uid,
         createdAt: serverTimestamp(),
+        dueDate: newTaskData.dueDate,   
+        dueTime: newTaskData.dueTime,   
       });
     } catch (err) {
       console.error("Error adding task:", err);
@@ -197,11 +201,18 @@ function App() {
     setEditingTask(null);
   };
 
+  // handles filter task
+  const filteredTasks = tasks.filter((task) => {
+    const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
+    const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
+    return matchesPriority && matchesCategory;
+  });
+
   // SORT: priority rank used when sorting by priority (lower = higher priority)
   const priorityOrder = { high: 0, medium: 1, low: 2 };
 
-  // SORT: derives a sorted copy of tasks based on the currently selected sortBy key
-  const sortedTasks = [...tasks].sort((a, b) => {
+  // SORT: derives a sorted copy of the *filtered* tasks based on the currently selected sortBy key
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
     switch (sortBy) {
       case 'dueDate':
         return new Date(`${a.dueDate}T${a.dueTime}`) - new Date(`${b.dueDate}T${b.dueTime}`);
@@ -241,12 +252,44 @@ function App() {
             </p>
           </div>
           
-          {/* status filter */}
-          <div className="flex gap-1.5 text-xs font-semibold bg-[#8c4362]/60 p-1 rounded-xl">
-            <button className="bg-pink-500 text-white px-3 py-1 rounded-lg">All</button>
-            <button className="text-pink-100 hover:text-white px-3 py-1 rounded-lg transition-colors">To Do</button>
-            <button className="text-pink-100 hover:text-white px-3 py-1 rounded-lg transition-colors">In Progress</button>
-            <button className="text-pink-100 hover:text-white px-3 py-1 rounded-lg transition-colors">Done</button>
+          {/* All button + priority/category filters, same pill container */}
+          <div className="flex items-center gap-1.5 text-xs font-semibold bg-[#8c4362]/60 p-1 rounded-xl">
+            <button
+              onClick={() => {
+                setFilterByPriority('all');
+                setFilterByCategory('all');
+              }}
+              className={`px-3 py-1 rounded-lg transition-colors ${
+                priorityFilter === 'all' && categoryFilter === 'all'
+                  ? 'bg-pink-500 text-white'
+                  : 'text-pink-100 hover:text-white'
+              }`}
+            >
+              All
+            </button>
+
+            <select
+              value={priorityFilter}
+              onChange={(e) => setFilterByPriority(e.target.value)}
+              className="bg-transparent text-pink-100 px-2 py-1 rounded-lg outline-none cursor-pointer"
+            >
+              <option value="all">Priority</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+
+            <select
+              value={categoryFilter}
+              onChange={(e) => setFilterByCategory(e.target.value)}
+              className="bg-transparent text-pink-100 px-2 py-1 rounded-lg outline-none cursor-pointer"
+            >
+              <option value="all">Category</option>
+              <option value="School">School</option>
+              <option value="Personal">Personal</option>
+              <option value="Work">Work</option>
+              <option value="Others">Others</option>
+            </select>
           </div>
         </div>
 
@@ -282,9 +325,9 @@ function App() {
           )}
         </div>
 
-        {/* task cards, rendered in sorted order */}
+        {/* task cards, rendered in filtered + sorted order */}
         <div className="flex flex-col gap-3 min-h-[200px] max-h-[450px] overflow-y-auto pr-1">
-          {tasks.length === 0 ? (
+          {filteredTasks.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-pink-200/60 font-medium text-sm py-12">
               No tasks added yet. Create now!
             </div>
@@ -297,7 +340,7 @@ function App() {
                 onDelete={handleRequestDelete}
                 onUndo={handleUndoDelete}
                 onEdit={handleStartEdit}
-                isPendingDelete={!!pendingDeletes[[task.id]]}
+                isPendingDelete={!!pendingDeletes[task.id]}
               />
             ))
           )}
