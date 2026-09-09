@@ -3,24 +3,38 @@
 import { useState } from 'react';
 
 function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Task' }) {
+
+
     const today = new Date().toISOString().split('T')[0];
 
     const [taskName, setTaskName] = useState(initialValues.taskName || '');
     const [dueDate, setDueDate] = useState(initialValues.dueDate || today);
     const [dueTime, setDueTime] = useState(initialValues.dueTime || '08:00');
-    const [status, setStatus] = useState(initialValues.status || 'not started');
+    // const [status, setStatus] = useState(initialValues.status || 'not started');
     const [priority, setPriority] = useState(initialValues.priority || 'low');
-    const [category, setCategory] = useState(initialValues.category || 'school');
+    const [category, setCategory] = useState(initialValues.category || 'school');const [error, setError] = useState('');
 
+
+    //listener for form submission
     const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!taskName.trim()) return;
 
+        e.preventDefault(); //prevent refreshing of page
+
+        // guard for submitting an empty field
+        if (!taskName.trim()) {
+            setError('Kindly add task name');
+            return;
+        }
+        setError(''); 
+
+
+
+        //include the ff. when submitting
         onSubmit({
             taskName: taskName.trim(),
-            dueDate,
-            dueTime,
-            status,
+            dueDate: dueDate || today ,
+            dueTime:  dueTime || '8:00',
+            // status,
             priority,
             category
         });
@@ -29,21 +43,28 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
             setTaskName('');
             setDueDate(today);
             setDueTime('08:00');
-            setStatus('not started');
-            setPriority('low');
+            setPriority('Low');
             setCategory('school');
         }
-    };
+        };
 
     return (
+        <div className="w-full">
         <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2 w-full bg-[#8c4362] p-2 rounded-xl text-xs">
+
+
             {/* task name */}
             <input
                 type="text"
                 placeholder="+ Add new task"
                 value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
-                className="flex-1 min-w-[150px] bg-[#6e324c] text-white placeholder-pink-200/50 px-3 py-2 rounded-lg outline-none"
+                onChange={(e) => {
+                    setTaskName(e.target.value);
+                    if (error) setError('');
+                }}
+                className={`flex-1 min-w-[150px] bg-[#6e324c] text-white placeholder-pink-200/50 px-3 py-2 rounded-lg outline-none ${
+                    error ? 'ring-2 ring-rose-500' : ''
+                }`}
             />
 
             {/* date */}
@@ -63,6 +84,7 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
             />
 
             {/* categ */}
+            {/* TODO: implement customized category when others is selected  */}
             <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -71,7 +93,7 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
                 <option value="school">School</option>
                 <option value="personal">Personal</option>
                 <option value="work">Work</option>
-                <option value="others">others</option>
+                <option value="others">others</option> 
             </select>
 
             {/* prio */}
@@ -85,7 +107,7 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
                 <option value="high">High</option>
             </select>
 
-            {/* status */}
+            {/* status
             <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
@@ -94,7 +116,10 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
                 <option value="not started">To Do</option>
                 <option value="in progress">In Progress</option>
                 <option value="done">Done</option>
-            </select>
+            </select> */}
+
+
+
 
             {/* submit + cancel */}
             <div className="flex gap-2">
@@ -115,6 +140,10 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
                 )}
             </div>
         </form>
+        {error && (
+            <p className="text-rose-300 text-xs font-semibold mt-1.5 ml-1">{error}</p>
+        )}
+        </div>
     );
 }
 
