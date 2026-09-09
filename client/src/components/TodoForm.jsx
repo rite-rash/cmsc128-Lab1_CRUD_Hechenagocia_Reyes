@@ -11,8 +11,9 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
     const [dueDate, setDueDate] = useState(initialValues.dueDate || today);
     const [dueTime, setDueTime] = useState(initialValues.dueTime || '08:00');
     // const [status, setStatus] = useState(initialValues.status || 'not started');
-    const [priority, setPriority] = useState(initialValues.priority || 'low');
-    const [category, setCategory] = useState(initialValues.category || 'school');const [error, setError] = useState('');
+    const [priority, setPriority] = useState(initialValues.priority || '');
+    const [category, setCategory] = useState(initialValues.category || '');
+    const [error, setError] = useState('');
 
 
     //listener for form submission
@@ -33,7 +34,7 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
         onSubmit({
             taskName: taskName.trim(),
             dueDate: dueDate || today ,
-            dueTime:  dueTime || '8:00',
+            dueTime:  dueTime || '08:00',
             // status,
             priority,
             category
@@ -43,8 +44,8 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
             setTaskName('');
             setDueDate(today);
             setDueTime('08:00');
-            setPriority('Low');
-            setCategory('school');
+            setPriority('');
+            setCategory('');
         }
         };
 
@@ -56,7 +57,7 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
             {/* task name */}
             <input
                 type="text"
-                placeholder="+ Add new task"
+                placeholder="Enter task name..."
                 value={taskName}
                 onChange={(e) => {
                     setTaskName(e.target.value);
@@ -85,28 +86,29 @@ function TodoForm({ initialValues = {}, onSubmit, onCancel, buttonText = 'Add Ta
 
             {/* categ */}
             {/* TODO: implement customized category when others is selected  */}
-            <select
-                value={category}
+
+            <select 
+                value={category} 
                 onChange={(e) => setCategory(e.target.value)}
                 className="bg-[#6e324c] text-pink-100 px-2 py-2 rounded-lg outline-none cursor-pointer"
             >
-                <option value="school">School</option>
-                <option value="personal">Personal</option>
-                <option value="work">Work</option>
-                <option value="others">others</option> 
+                <option value="" disabled hidden className="text-black">Category</option>
+                <option value="School" className="text-black">School</option>
+                <option value="Personal" className="text-black">Personal</option>
+                <option value="Work" className="text-black">Work</option>
+                <option value="Others" className="text-black">Others</option>
             </select>
 
-            {/* prio */}
-            <select
-                value={priority}
+            <select 
+                value={priority} 
                 onChange={(e) => setPriority(e.target.value)}
                 className="bg-[#6e324c] text-pink-100 px-2 py-2 rounded-lg outline-none cursor-pointer"
             >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="" disabled hidden className="text-black">Priority</option>
+                <option value="Low" className="text-black">Low</option>
+                <option value="Medium" className="text-black">Medium</option>
+                <option value="High" className="text-black">High</option>
             </select>
-
             {/* status
             <select
                 value={status}

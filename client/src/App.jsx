@@ -327,10 +327,12 @@ function App() {
 
         {/* task cards, rendered in filtered + sorted order */}
         <div className="flex flex-col gap-3 min-h-[200px] max-h-[450px] overflow-y-auto pr-1">
-          {filteredTasks.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-pink-200/60 font-medium text-sm py-12">
-              No tasks added yet. Create now!
-            </div>
+        {filteredTasks.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-pink-200/60 font-medium text-sm py-12">
+            {tasks.length === 0
+              ? "No tasks added yet. Create now!"
+              : "No tasks match this filter."}
+          </div>
           ) : (
             sortedTasks.map((task) => (
               <TodoItem 
