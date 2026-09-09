@@ -1,7 +1,6 @@
 // DESCRIPTION: Controls app structure, state management, and persistence
 
-import { useState, useEffect } from 'react';
-
+import { useState, useEffect, useRef } from 'react';
 
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import { 
@@ -17,7 +16,6 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "./firebaseConfig";
 
-
 import Layout from './components/Layout';
 import TodoForm from './components/TodoForm';
 import TodoItem from './components/TodoItem';
@@ -28,6 +26,17 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [pendingDeletes, setPendingDeletes] = useState({});
   const [editingTask, setEditingTask] = useState(null);
+  const [taskToDelete, setTaskToDelete] = useState(null);
+  const [sortBy, setSortBy] = useState('dateAdded');
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const sortMenuRef = useRef(null);
+
+  const sortOptions = [
+    { value: 'dateAdded', label: 'Date Added' },
+    { value: 'dueDate', label: 'Due Date' },
+    { value: 'priority', label: 'Priority' },
+    { value: 'category', label: 'Category' },
+  ];
 
   // anonymous auth
   useEffect(() => {
@@ -66,6 +75,18 @@ function App() {
     return () => unsubscribe();
   }, [user]);
 
+  // close sort menu when clicking outside of it
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target)) {
+        setSortMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // add task to firestore
   const handleAddTask = async (newTaskData) => {
     if (!newTaskData.taskName || !newTaskData.taskName.trim() || !user) return;
@@ -73,6 +94,8 @@ function App() {
     try {
       await addDoc(collection(db, "tasks"), {
         taskName: newTaskData.taskName,
+        dueDate: newTaskData.dueDate,
+        dueTime: newTaskData.dueTime,
         status: newTaskData.status || 'not started',
         priority: newTaskData.priority || 'Low',     
         category: newTaskData.category || 'General', 
@@ -97,6 +120,24 @@ function App() {
     } catch (err) {
       console.error("Error updating status:", err);
     }
+  };
+
+  // called when the user clicks the delete icon on a task
+  const handleRequestDelete = (taskId) => {
+    setTaskToDelete(taskId);
+  };
+
+  // called when the user confirms in the dialog
+  const handleConfirmDelete = () => {
+    if (taskToDelete) {
+      handleDeleteTask(taskToDelete); // your existing function, unchanged
+    }
+    setTaskToDelete(null);
+  };
+
+  // called when the user cancels
+  const handleCancelDelete = () => {
+    setTaskToDelete(null);
   };
 
   const handleDeleteTask = (taskId) => {
@@ -149,6 +190,21 @@ function App() {
     setEditingTask(null);
   };
 
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    switch (sortBy) {
+      case 'dueDate':
+        return new Date(`${a.dueDate}T${a.dueTime}`) - new Date(`${b.dueDate}T${b.dueTime}`);
+      case 'priority':
+        return (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3);
+      case 'category':
+        return (a.category || '').localeCompare(b.category || '');
+      case 'dateAdded':
+      default:
+        return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
+    }
+  });
 
   if (loading) {
     return (
@@ -185,6 +241,38 @@ function App() {
           </div>
         </div>
 
+        {/* sorting options */}
+        <div className="relative w-fit" ref={sortMenuRef}>
+          <button
+            onClick={() => setSortMenuOpen((prev) => !prev)}
+            className="flex items-center gap-1 bg-[#8c4362]/60 text-pink-100 text-xs font-semibold px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[#8c4362]/80 transition-colors"
+          >
+            Sort by
+            <span className="text-[10px]">▾</span>
+          </button>
+
+          {sortMenuOpen && (
+            <div className="absolute mt-1 w-44 bg-[#8c4362] rounded-lg shadow-lg overflow-hidden z-10">
+              {sortOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setSortBy(opt.value);
+                    setSortMenuOpen(false);
+                  }}
+                  className={`block w-full text-left px-4 py-2.5 text-sm ${
+                    sortBy === opt.value
+                      ? 'bg-pink-500 text-white font-semibold'
+                      : 'text-pink-100 hover:bg-[#6e324c]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* task cards */}
         <div className="flex flex-col gap-3 min-h-[200px] max-h-[450px] overflow-y-auto pr-1">
           {tasks.length === 0 ? (
@@ -192,12 +280,12 @@ function App() {
               No tasks added yet. Create now!
             </div>
           ) : (
-            tasks.map((task) => (
+            sortedTasks.map((task) => (
               <TodoItem 
                 key={task.id} 
                 task={task} 
                 onToggleStatus={handleToggleStatus}
-                onDelete={handleDeleteTask}
+                onDelete={handleRequestDelete}
                 onUndo={handleUndoDelete}
                 onEdit={handleStartEdit}
                 isPendingDelete={!!pendingDeletes[[task.id]]}
@@ -219,6 +307,32 @@ function App() {
         )}
 
       </div>
+
+      {taskToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[#bc688c] rounded-2xl shadow-2xl p-6 w-80 flex flex-col gap-4">
+            <h2 className="text-white font-bold text-lg">Delete this task?</h2>
+            <p className="text-pink-100 text-sm">
+              This can't be undone after a few seconds.
+            </p>
+            <div className="flex justify-end gap-2 mt-2">
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 rounded-lg text-pink-100 hover:bg-[#8c4362]/60 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </Layout>
   );
 }
