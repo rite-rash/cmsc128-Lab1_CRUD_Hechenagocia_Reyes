@@ -16,7 +16,6 @@ import {
 import { db } from "./firebaseConfig";
 import { useAuth } from "./AuthContext";
 
-import Layout from './components/Layout';
 import TodoForm from './components/TodoForm';
 import TodoItem from './components/TodoItem';
 
@@ -214,16 +213,14 @@ function Todo() {
 
   if (loading) {
     return (
-      <Layout>
         <div className="text-white text-center py-20 font-semibold">
           Loading your tasks...
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
+    <>
       {/* main container */}
       <div className="w-full max-w-6xl flex-1 bg-[#bc688c] p-4 md:p-8 rounded-3xl shadow-2xl flex flex-col gap-6">
         
@@ -381,7 +378,7 @@ function Todo() {
         </div>
       )}
 
-    </Layout>
+    </>
   );
 }
 
