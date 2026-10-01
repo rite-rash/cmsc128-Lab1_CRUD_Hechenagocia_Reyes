@@ -86,8 +86,8 @@ function Todo() {
         dueDate: newTaskData.dueDate,
         dueTime: newTaskData.dueTime,
         status: newTaskData.status || 'not started',
-        priority: newTaskData.priority || 'Low',     
-        category: newTaskData.category || 'School', 
+        priority: newTaskData.priority || 'low',     
+        category: newTaskData.category || 'school', 
         userId: user.uid,
         createdAt: serverTimestamp(),
         dueDate: newTaskData.dueDate,   
@@ -188,8 +188,8 @@ function Todo() {
 
   // handles filter task
   const filteredTasks = tasks.filter((task) => {
-    const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
-    const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
+    const matchesPriority = priorityFilter === 'all' || task.priority?.toLowerCase() === priorityFilter;
+    const matchesCategory = categoryFilter === 'all' || task.category?.toLowerCase() === categoryFilter;
     return matchesPriority && matchesCategory;
   });
 
@@ -202,7 +202,7 @@ function Todo() {
       case 'dueDate':
         return new Date(`${a.dueDate}T${a.dueTime}`) - new Date(`${b.dueDate}T${b.dueTime}`);
       case 'priority':
-        return (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3);
+        return (priorityOrder[a.priority?.toLowerCase()] ?? 3) - (priorityOrder[b.priority?.toLowerCase()] ?? 3);
       case 'category':
         return (a.category || '').localeCompare(b.category || '');
       case 'dateAdded':

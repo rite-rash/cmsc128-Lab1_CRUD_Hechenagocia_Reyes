@@ -1,10 +1,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
+
+
+
 import {
     onAuthStateChanged,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
+    sendPasswordResetEmail, 
     updateProfile,
     verifyBeforeUpdateEmail,
     updatePassword,
@@ -124,16 +128,22 @@ function AuthProvider({ children }) {
     const value = {
         user,
         authLoading,
-        signup,
-        login,
-        logout,
+        signup: (email, pw) => createUserWithEmailAndPassword(auth, email, pw),
+        login: (email, pw) => signInWithEmailAndPassword(auth, email, pw),
+        logout: () => signOut(auth),
+        resetPassword:(email)=> sendPasswordResetEmail(auth, email),
+//         signup,
+//         login,
+//         logout,
         updateName: updateUsername,
         reauth,
         changeEmail,
         changePassword,
     };
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    );
 }
 
 // ---------- Hook ----------

@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import Layout from "./components/Layout";
 
+import PasswordInput from "./PasswordInput";
 // ---------- Constants (defined once, outside the component) ----------
 
 // Maps Firebase error codes to user-friendly messages
@@ -73,16 +74,21 @@ function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     className={inputStyle}
                 />
-
-                {/* Password */}
-                <input
-                    type="password"
-                    required
+                
+                <PasswordInput
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={inputStyle}
                 />
+                
+                <Link
+                    to="/forgot-password"
+                    className="-mt-2 text-sm text-right font-semibold text-pink-100 hover:text-white hover:underline"
+                >
+                    Forgot password?
+                </Link>
+                
+                {error && <p className="text-sm text-pink-100 font-semibold">{error}</p>}
 
                 {/* Error message (only shown when there is one) */}
                 {error && (
@@ -108,5 +114,6 @@ function Login() {
         </Layout>
     );
 }
+
 
 export default Login;
