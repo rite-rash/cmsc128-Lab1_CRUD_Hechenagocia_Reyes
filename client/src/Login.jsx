@@ -90,10 +90,7 @@ function Login() {
                 
                 {error && <p className="text-sm text-pink-100 font-semibold">{error}</p>}
 
-                {/* Error message (only shown when there is one) */}
-                {error && (
-                    <p className="text-sm text-pink-100 font-semibold">{error}</p>
-                )}
+
 
                 {/* Submit */}
                 <button disabled={submitting} className={buttonStyle}>

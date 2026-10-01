@@ -14,7 +14,7 @@ const linkClass = ({ isActive }) =>
 // ---------- Component ----------
 
 function AppLayout() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
 
     // Whether the slide-out menu is open
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -49,7 +49,7 @@ function AppLayout() {
                     <aside className="fixed top-12 left-0 bottom-0 w-64 z-30 bg-[#8c4362] shadow-2xl flex flex-col gap-2 p-4">
                         {/* Who is logged in */}
                         <p className="px-4 pb-3 mb-2 text-sm font-bold text-white border-b border-pink-400/30 truncate">
-                            {user.displayName || user.email}
+                            {user.userName || user.email}
                         </p>
 
                         {/* `end` stops "/" from staying highlighted on other pages */}
@@ -59,6 +59,16 @@ function AppLayout() {
                         <NavLink to="/profile" onClick={closeSidebar} className={linkClass}>
                             Account
                         </NavLink>
+
+                        <button
+                            onClick={() => {
+                                logout();
+                                closeSidebar();
+                            }}
+                            className="mt-auto px-4 py-3 rounded-lg text-sm font-semibold text-pink-100 hover:bg-[#6e324c] text-left"
+                        >
+                            Log out
+                        </button>
                     </aside>
                 </>
             )}

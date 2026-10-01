@@ -227,18 +227,21 @@ function Todo() {
         {/* header */}
         <div className="flex justify-between items-center border-b border-pink-400/30 pb-4">
           <div>
+            <h2 className="text-sm text-pink-100 mb-1">
+              Hello, {user.displayName || user.email}
+            </h2>
             <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide">
               My Todo List
             </h1>
             <p className="text-xs text-pink-200/80 italic mt-0.5">
               {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </p>
-            <button
+            {/* <button
                 onClick={logout}
                 className="text-xs font-semibold text-pink-100 hover:text-white"
             >
                 Log out
-            </button>
+            </button> */}
         </div>
           
           {/* All button + priority/category filters, same pill container */}
