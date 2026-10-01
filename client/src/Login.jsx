@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import Layout from "./components/Layout";
 
+import PasswordInput from "./PasswordInput";
+
 function Login() {
     const { user, login } = useAuth();
     const navigate = useNavigate();
@@ -52,14 +54,18 @@ function Login() {
                     className="px-3 py-2 rounded-lg bg-pink-50 text-gray-900 outline-none"
                 />
                 
-                <input 
-                    type="password"
-                    required
+                <PasswordInput
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-pink-50 text-gray-900 outline-none"
                 />
+                
+                <Link
+                    to="/forgot-password"
+                    className="-mt-2 text-sm text-right font-semibold text-pink-100 hover:text-white hover:underline"
+                >
+                    Forgot password?
+                </Link>
                 
                 {error && <p className="text-sm text-pink-100 font-semibold">{error}</p>}
 
@@ -80,5 +86,6 @@ function Login() {
         </Layout>
     );
 }
+
 
 export default Login;
