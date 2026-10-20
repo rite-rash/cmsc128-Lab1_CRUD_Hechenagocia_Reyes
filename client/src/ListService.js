@@ -123,7 +123,7 @@ export async function deleteListTask(listId, taskId) {
 export function useMyLists() {
   const { user } = useAuth();
   const uid = user?.uid;
-  const [lists, setLists] = useState([]);
+  const [lists, setLists] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -211,9 +211,9 @@ export function useUserNames(uids) {
           );
 
 
-          for(const doc of snap.docs) {
-            const uid = doc.data().uid;
-            const username = doc.id;
+          for(const d of snap.docs) {
+            const uid = d.data().uid;
+            const username = d.id;
             namesLookup[uid] = username;
           }
         }
@@ -223,7 +223,7 @@ export function useUserNames(uids) {
       }
     }) (); //run async right away
     return() => {
-      cancelled = True;
+      cancelled = true;
     };
   }, [key]);
 
