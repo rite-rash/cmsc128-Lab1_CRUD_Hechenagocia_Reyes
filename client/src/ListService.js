@@ -187,3 +187,45 @@ export function useListTasks(listId) {
 
   return { tasks, loading, error };
 }
+
+// turn uids to lookup obj which map each uid to corresponding username
+
+export function useUserNames(uids) {
+  const [names, setNames] =useState([]);
+  const key = (uids || []).join(",");  // to avoid constant check since useEffect compares primitives and array is not 
+
+  useEffect(() => {
+    if (!key) return; // guard for empty arrays
+    const ids = key.split(","); //since firestore requires array of vals
+
+    let cancelled = false; //handles race conditions check
+
+    (async()=> {
+      const namesLookup = {}; //onj that stores the names 
+
+      try{
+        //loop through the array of uids then query by batch of 30 since max in firestore is that
+        for (let i=0; i < ids.length; i+=30){
+          const snap = await getDocs(
+            query(collection(db, "usernames"), where("uid", "in", ids.slice(i, i+30)))
+          );
+
+
+          for(const doc of snap.docs) {
+            const uid = doc.data().uid;
+            const username = doc.id;
+            namesLookup[uid] = username;
+          }
+        }
+        if(!cancelled) setNames(namesLookup);
+      }catch (err) {
+        console.error("in useUserNames", err);
+      }
+    }) (); //run async right away
+    return() => {
+      cancelled = True;
+    };
+  }, [key]);
+
+  return names
+}
