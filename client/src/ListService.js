@@ -123,7 +123,7 @@ export async function deleteListTask(listId, taskId) {
 export function useMyLists() {
   const { user } = useAuth();
   const uid = user?.uid;
-  const [lists, setLists] = useState({});
+  const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -211,7 +211,7 @@ export function useUserNames(uids) {
           );
 
 
-          for(const d of snap.docs) {
+          for(const d of snap.docs){
             const uid = d.data().uid;
             const username = d.id;
             namesLookup[uid] = username;
@@ -228,4 +228,22 @@ export function useUserNames(uids) {
   }, [key]);
 
   return names
+}
+
+//helper hookes so to avoid overlap
+
+export function useOwnedLists() {
+  const {user} = useAuth();
+
+  const {lists, loading} = useMyLists();
+  const ownedLists = (lists||[]).filter((list) =>list.ownerId === user?.uid);
+  return { lists: ownedLists, loading };
+}
+
+
+export function useSharedLists() {
+  const {user} = useAuth();
+  const {lists, loading} = useMyLists();
+  const sharedLists = (lists||[]).filter((list) => list.ownerId !== user?.uid);
+  return {lists: sharedLists, loading};
 }

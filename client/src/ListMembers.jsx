@@ -98,7 +98,7 @@ export default function ListMembers ({list, names = {}}) {
 //helper function for building member list
 
 
-function MembersList({ list, user, names = {}}) {
+function MembersList({ list, user, names = {} }) {
 
     const memberElements = [];
 
