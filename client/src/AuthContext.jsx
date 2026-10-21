@@ -45,32 +45,25 @@ function makeError(code) {
 //   4. save the display name on the Firebase auth profile
 async function updateUsername(name) {
     const trimmed = name.trim();
-    const key = trimmed.toLowerCase(); // "usernames" docs are stored lowercase
+    const key = trimmed.toLowerCase();
 
-    // 1. Validate format
     if (!USERNAME_PATTERN.test(key)) {
         throw makeError("username/invalid");
     }
 
-    // 2. Check availability
     const uid = auth.currentUser.uid;
     const newRef = doc(db, "usernames", key);
     const newSnap = await getDoc(newRef);
 
-    // Someone else already owns it
     if (newSnap.exists() && newSnap.data().uid !== uid) {
         throw makeError("username/taken");
     }
 
-    // 3. Claim new name / free old name (all-or-nothing)
     const batch = writeBatch(db);
-
-    // Claim the new name (skip if it's already ours, e.g. only the capital letters changed)
     if (!newSnap.exists()) {
         batch.set(newRef, { uid });
     }
 
-    // Free the old name, but only if it exists in the list and belongs to us
     const oldKey = (auth.currentUser.displayName || "").toLowerCase();
     if (oldKey && oldKey !== key) {
         const oldRef = doc(db, "usernames", oldKey);
@@ -82,7 +75,6 @@ async function updateUsername(name) {
 
     await batch.commit();
 
-    // 4. Save the display name (keeps the user's original capitalization)
     await updateProfile(auth.currentUser, { displayName: trimmed });
 }
 

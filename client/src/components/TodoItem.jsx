@@ -29,10 +29,6 @@ function TodoItem({ task, onToggleStatus, onDelete, onUndo, onEdit, isPendingDel
                     <span>{task.dueDate} • {task.dueTime}</span>
 
                     <span className="bg-[#59243e] px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">
-                    {task.status}
-                    </span>
-
-                    <span className="bg-[#59243e] px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">
                     {task.priority}
                     </span>
 

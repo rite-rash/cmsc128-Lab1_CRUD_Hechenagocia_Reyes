@@ -63,7 +63,7 @@ function AppLayout() {
 
                         {/* `end` stops "/" from staying highlighted on other pages */}
                         <NavLink to="/" end onClick={closeSidebar} className={linkClass}>
-                            To-do
+                            Personal List
                         </NavLink>
 
 
@@ -72,7 +72,7 @@ function AppLayout() {
                             onClick={() => setCollabOpen((prev)=> !prev)}
                             className="flex items-center justify-between px-4 py-3 rounded-lg text-sm font-semibold text-pink-100 hover:bg-[#6e324c] text-left"
                         >       
-                        Collaborative Todo
+                        Collaborative List
                             {/* if collabOpen is true show up arrow meaning it's expanded, otherwise show down arrow */}
                             <span className="text-base font-bold ml-2">{collabOpen ? "▴" : "▾"}</span>
                         </button>
