@@ -19,8 +19,17 @@ function AppLayout() {
     // Whether the slide-out menu is open
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    // for keeping track whether the collab todo dropdown is open or not
+    const [collabOpen, setCollabOpen] = useState(false);
+
+
+
+
     const toggleSidebar = () => setSidebarOpen((prev) => !prev);
     const closeSidebar = () => setSidebarOpen(false);
+
+
+
 
     return (
         <Layout>
@@ -56,6 +65,36 @@ function AppLayout() {
                         <NavLink to="/" end onClick={closeSidebar} className={linkClass}>
                             To-do
                         </NavLink>
+
+
+                        {/* expands; shows two lists screens  */}
+                        <button
+                            onClick={() => setCollabOpen((prev)=> !prev)}
+                            className="flex items-center justify-between px-4 py-3 rounded-lg text-sm font-semibold text-pink-100 hover:bg-[#6e324c] text-left"
+                        >       
+                        Collaborative Todo
+                            {/* if collabOpen is true show up arrow meaning it's expanded, otherwise show down arrow */}
+                            <span className="text-base font-bold ml-2">{collabOpen ? "▴" : "▾"}</span>
+                        </button>
+
+
+                        {/* if collaborative todo is clicked  */}
+                        {collabOpen && (
+                            //indent illusion
+                            <div className="flex flex-col gap-1 ml-4">
+                                <NavLink to="/collab/owned" onClick={closeSidebar} className ={linkClass}>
+                                    Owned by me
+                                </NavLink>
+
+                                <NavLink to="/collab/shared" onClick={closeSidebar} className ={linkClass}>
+                                    Shared with me
+                                </NavLink>
+                            </div>
+                        )}
+
+
+
+
                         <NavLink to="/profile" onClick={closeSidebar} className={linkClass}>
                             Account
                         </NavLink>

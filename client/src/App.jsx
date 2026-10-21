@@ -13,6 +13,12 @@ import Profile from "./Profile";
 import Register from "./register";
 import ForgotPassword from "./ForgotPassword";
 
+import OwnedList from "./OwnedList";
+import SharedList from "./SharedList";
+import CollabTodo from "./CollabTodo";
+import ListGuard from "./components/ListGuard";
+
+
 
 function App() {
   return (
@@ -33,8 +39,18 @@ function App() {
               </ProtectedRoute>
             }
           >
+
+            //children of AppLayout
             <Route path="/" element={<Todo />} />
             <Route path="/profile" element={<Profile />} />
+
+
+            <Route path="/collab/owned"  element={<OwnedList />} />
+            <Route path="/collab/shared" element={<SharedList />} />
+            <Route path="/lists/:listId" element={<ListGuard><CollabTodo /></ListGuard>} />
+
+
+
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
