@@ -247,3 +247,15 @@ export function useSharedLists() {
   const sharedLists = (lists||[]).filter((list) => list.ownerId !== user?.uid);
   return {lists: sharedLists, loading};
 }
+
+//helper hook for renaming the list if owner
+
+export async function renameList(listId, name) {
+  const clean = name.trim();
+  if (!clean) throw new Error("Enter a list name");
+  try {
+    await updateDoc(doc(db, "lists", listId), { name: clean });
+  } catch (err) {
+    throw friendlyError(err, "Only the list owner can rename this list");
+  }
+}
