@@ -1,4 +1,4 @@
-// DESCRIPTION: Controls app structure, state management, and persistence
+// DESCRIPTION: personal todo
 import { useState, useEffect, useRef } from 'react';
 
 import {
@@ -16,7 +16,7 @@ import {
 import { db } from "./firebaseConfig";
 import { useAuth } from "./AuthContext";
 
-import TodoForm from './components/TodoForm';
+import TodoForm from './components/TodoForm'; 
 import TodoItem from './components/TodoItem';
 
 function Todo() {
@@ -266,123 +266,129 @@ function Todo() {
   return (
     <>
       {/* main container */}
-      <div className="w-full max-w-6xl flex-1 bg-[#bc688c] p-4 md:p-8 rounded-3xl shadow-2xl flex flex-col gap-6">
 
-        {/* header */}
-        <div className="flex justify-between items-center border-b border-pink-400/30 pb-4">
-          <div>
-            <h2 className="text-sm text-pink-100 mb-1">
-              Hello, {user.displayName || user.email}
-            </h2>
+      <div className="w-full max-w-6xl max-h-[calc(100dvh-4.5rem)] md:max-h-[calc(100dvh-7rem)] flex-1 bg-[#bc688c] p-4 md:p-8 rounded-3xl shadow-2xl flex flex-col gap-6">
 
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide">
-              My Todo List
-            </h1>
 
-            <p className="text-xs text-pink-200/80 italic mt-0.5">
-              {new Date().toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              })}
-            </p>
+        <div className="shrink-0 flex flex-col gap-6">
+
+          {/* header */}
+          <div className="flex justify-between items-center border-b border-pink-400/30 pb-4">
+            <div>
+              <h2 className="text-sm text-pink-100 mb-1">
+                Hello, {user.displayName || user.email}
+              </h2>
+
+              <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide">
+                My Todo List
+              </h1>
+
+              <p className="text-xs text-pink-200/80 italic mt-0.5">
+                {new Date().toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </p>
+            </div>
+
+            {/* All button + priority/category filters */}
+            <div className="flex items-center gap-2 text-xs font-semibold">
+              <button
+                onClick={() => {
+                  setFilterByPriority('all');
+                  setFilterByCategory('all');
+                }}
+                className={`px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                  priorityFilter === 'all' && categoryFilter === 'all'
+                    ? 'bg-pink-500 text-white'
+                    : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
+                }`}
+              >
+                All
+              </button>
+
+              <select
+                value={priorityFilter}
+                onChange={(e) => setFilterByPriority(e.target.value)}
+                className={`px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors ${
+                  priorityFilter !== 'all'
+                    ? 'bg-pink-500 text-white'
+                    : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
+                }`}
+              >
+                <option value="all" className="bg-[#8c4362] text-pink-100">Priority</option>
+                <option value="low" className="bg-[#8c4362] text-pink-100">Low</option>
+                <option value="medium" className="bg-[#8c4362] text-pink-100">Medium</option>
+                <option value="high" className="bg-[#8c4362] text-pink-100">High</option>
+              </select>
+
+              <select
+                value={categoryFilter}
+                onChange={(e) => setFilterByCategory(e.target.value)}
+                className={`px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors ${
+                  categoryFilter !== 'all'
+                    ? 'bg-pink-500 text-white'
+                    : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
+                }`}
+              >
+                <option value="all" className="bg-[#8c4362] text-pink-100">Category</option>
+                <option value="school" className="bg-[#8c4362] text-pink-100">School</option>
+                <option value="personal" className="bg-[#8c4362] text-pink-100">Personal</option>
+                <option value="work" className="bg-[#8c4362] text-pink-100">Work</option>
+                <option value="others" className="bg-[#8c4362] text-pink-100">Others</option>
+              </select>
+            </div>
           </div>
 
-          {/* All button + priority/category filters */}
-          <div className="flex items-center gap-2 text-xs font-semibold">
+          {/* toolbar row: sort menu on the left, add button on the right */}
+          <div className="flex justify-between items-center">
+
+            {/* SORT: dropdown for choosing the active sortBy key */}
+            <div className="relative w-fit" ref={sortMenuRef}>
+              <button
+                onClick={() => setSortMenuOpen((prev) => !prev)}
+                className="flex items-center gap-1 bg-[#8c4362]/60 text-pink-100 text-xs font-semibold px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[#8c4362]/80 transition-colors"
+              >
+                Sort by
+                <span className="text-[10px]">▾</span>
+              </button>
+
+              {sortMenuOpen && (
+                <div className="absolute mt-1 w-44 bg-[#8c4362] rounded-lg shadow-lg overflow-hidden z-10">
+                  {sortOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setSortBy(opt.value);
+                        setSortMenuOpen(false);
+                      }}
+                      className={`block w-full text-left px-4 py-2.5 text-sm ${
+                        sortBy === opt.value
+                          ? 'bg-pink-500 text-white font-semibold'
+                          : 'text-pink-100 hover:bg-[#6e324c]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ADD: opens the popup with a blank form */}
             <button
-              onClick={() => {
-                setFilterByPriority('all');
-                setFilterByCategory('all');
-              }}
-              className={`px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${
-                priorityFilter === 'all' && categoryFilter === 'all'
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
-              }`}
+              onClick={() => setIsFormOpen(true)}
+              className="bg-pink-500 hover:bg-pink-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
             >
-              All
+              + Add New Task
             </button>
-
-            <select
-              value={priorityFilter}
-              onChange={(e) => setFilterByPriority(e.target.value)}
-              className={`px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors ${
-                priorityFilter !== 'all'
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
-              }`}
-            >
-              <option value="all" className="bg-[#8c4362] text-pink-100">Priority</option>
-              <option value="low" className="bg-[#8c4362] text-pink-100">Low</option>
-              <option value="medium" className="bg-[#8c4362] text-pink-100">Medium</option>
-              <option value="high" className="bg-[#8c4362] text-pink-100">High</option>
-            </select>
-
-            <select
-              value={categoryFilter}
-              onChange={(e) => setFilterByCategory(e.target.value)}
-              className={`px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors ${
-                categoryFilter !== 'all'
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
-              }`}
-            >
-              <option value="all" className="bg-[#8c4362] text-pink-100">Category</option>
-              <option value="school" className="bg-[#8c4362] text-pink-100">School</option>
-              <option value="personal" className="bg-[#8c4362] text-pink-100">Personal</option>
-              <option value="work" className="bg-[#8c4362] text-pink-100">Work</option>
-              <option value="others" className="bg-[#8c4362] text-pink-100">Others</option>
-            </select>
-          </div>
-        </div>
-
-        {/* toolbar row: sort menu on the left, add button on the right */}
-        <div className="flex justify-between items-center">
-
-          {/* SORT: dropdown for choosing the active sortBy key */}
-          <div className="relative w-fit" ref={sortMenuRef}>
-            <button
-              onClick={() => setSortMenuOpen((prev) => !prev)}
-              className="flex items-center gap-1 bg-[#8c4362]/60 text-pink-100 text-xs font-semibold px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[#8c4362]/80 transition-colors"
-            >
-              Sort by
-              <span className="text-[10px]">▾</span>
-            </button>
-
-            {sortMenuOpen && (
-              <div className="absolute mt-1 w-44 bg-[#8c4362] rounded-lg shadow-lg overflow-hidden z-10">
-                {sortOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      setSortBy(opt.value);
-                      setSortMenuOpen(false);
-                    }}
-                    className={`block w-full text-left px-4 py-2.5 text-sm ${
-                      sortBy === opt.value
-                        ? 'bg-pink-500 text-white font-semibold'
-                        : 'text-pink-100 hover:bg-[#6e324c]'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* ADD: opens the popup with a blank form */}
-          <button
-            onClick={() => setIsFormOpen(true)}
-            className="bg-pink-500 hover:bg-pink-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
-          >
-            + Add New Task
-          </button>
         </div>
 
         {/* task cards, rendered in filtered + sorted order */}
-        <div className="flex flex-col gap-3 flex-1 min-h-[200px] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto pr-1">
           {filteredTasks.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-pink-200/60 font-medium text-sm py-12">
               {tasks.length === 0
