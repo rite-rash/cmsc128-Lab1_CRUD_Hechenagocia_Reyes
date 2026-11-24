@@ -547,7 +547,7 @@ function CollabTodo() {
                 </div>
             )}
 
-            //del task
+            {/* del task */}
             {taskToDelete && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-[#3d0a22]/45 p-4"
