@@ -19,6 +19,7 @@ import ListMembers from "./ListMembers";
 import TodoForm from "./components/TodoForm";
 import TodoItem from "./components/TodoItem";
 import Breadcrumbs from "./components/Breadcrumbs";
+import FilterSelect from "./components/FilterSelect";
 
 //helper functions for due dates & overdue 
 function getDueTime(task) {
@@ -105,80 +106,6 @@ function TrashIcon() {
                 d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m2 0v9.5A1.5 1.5 0 0112.5 17h-5A1.5 1.5 0 016 15.5V6"
             />
         </svg>
-    );
-}
-
-//custom  dropdown component
-function FilterSelect({ value, onChange, placeholder, options }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef(null);
-
-    useEffect(() => {
-        const handleOutside = (e) => {
-            if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-        };
-        document.addEventListener("mousedown", handleOutside);
-        return () => document.removeEventListener("mousedown", handleOutside);
-    }, []);
-
-    const selected = options.find((o) => o.value === value);
-
-    return (
-        <div className="relative" ref={ref}>
-            <button
-                type="button"
-                onClick={() => setOpen((p) => !p)}
-                aria-haspopup="listbox"
-                aria-expanded={open}
-                className={`flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-                    selected
-                        ? "border-[#7a0f3d] bg-[#7a0f3d] text-white"
-                        : "border-pink-200 bg-white text-[#4a1f33] hover:bg-pink-50"
-                }`}
-            >
-                <span>{selected ? selected.label : placeholder}</span>
-                <ChevronIcon />
-            </button>
-
-            {open && (
-                <div
-                    role="listbox"
-                    className="absolute left-0 z-10 mt-2 w-40 overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-lg"
-                >
-                    <button
-                        type="button"
-                        onClick={() => {
-                            onChange("all");
-                            setOpen(false);
-                        }}
-                        className={`block w-full cursor-pointer px-4 py-2 text-left text-sm ${
-                            value === "all"
-                                ? "bg-pink-50 font-semibold text-[#7a0f3d]"
-                                : "text-[#4a1f33] hover:bg-pink-50"
-                        }`}
-                    >
-                        Any
-                    </button>
-                    {options.map((opt) => (
-                        <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                                onChange(opt.value);
-                                setOpen(false);
-                            }}
-                            className={`block w-full cursor-pointer px-4 py-2 text-left text-sm ${
-                                value === opt.value
-                                    ? "bg-pink-50 font-semibold text-[#7a0f3d]"
-                                    : "text-[#4a1f33] hover:bg-pink-50"
-                            }`}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
     );
 }
 
