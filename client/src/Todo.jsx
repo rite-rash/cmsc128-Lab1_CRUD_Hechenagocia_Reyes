@@ -19,6 +19,7 @@ import { useAuth } from "./AuthContext";
 import TodoForm from './components/TodoForm';
 import TodoItem from './components/TodoItem';
 import Breadcrumbs from './components/Breadcrumbs';
+import FilterSelect from './components/FilterSelect';
 
 // small icons (inline so no extra dependency)
 function ChevronIcon({ className = "" }) {
@@ -51,67 +52,6 @@ function PlusIcon() {
     >
       <path d="M10 4v12M4 10h12" />
     </svg>
-  );
-}
-
-// pill-shaped <select> with a custom chevron
-function FilterSelect({ value, onChange, placeholder, options }) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef(null);
-  const active = value !== 'all';
-  const selected = options.find((o) => o.value === value);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const choose = (v) => {
-    onChange(v);
-    setOpen(false);
-  };
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <button
-        onClick={() => setOpen((prev) => !prev)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium cursor-pointer transition-colors ${
-          active
-            ? 'bg-[#7a0f3d] border-[#7a0f3d] text-white'
-            : 'bg-white border-pink-200 text-[#4a1f33] hover:bg-pink-50'
-        }`}
-      >
-        {selected ? selected.label : placeholder}
-        <ChevronIcon />
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          className="absolute left-0 mt-2 w-44 bg-white border border-pink-200 rounded-2xl shadow-lg overflow-hidden z-10"
-        >
-          {[{ value: 'all', label: 'Any' }, ...options].map((opt) => (
-            <button
-              key={opt.value}
-              role="menuitem"
-              onClick={() => choose(opt.value)}
-              className={`block w-full text-left px-4 py-2 text-sm cursor-pointer ${
-                value === opt.value
-                  ? 'bg-pink-50 text-[#7a0f3d] font-semibold'
-                  : 'text-[#4a1f33] hover:bg-pink-50'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
