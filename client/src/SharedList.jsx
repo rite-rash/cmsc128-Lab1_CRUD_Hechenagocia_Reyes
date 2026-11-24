@@ -5,35 +5,38 @@ import { Link } from "react-router-dom";
 import { useSharedLists } from "./ListService";
 
 function SharedLists() {
-
     const { lists: shared, loading } = useSharedLists();
 
-    if (loading) return <p className="text-white p-8">Loading...</p>;
+    if (loading) {
+        return (
+            <div className="py-20 text-center font-semibold text-[#7a0f3d]">
+                Loading...
+            </div>
+        );
+    }
 
     return (
-
-        <div className="w-full max-w-6xl max-h-[calc(100dvh-6.5rem)] md:max-h-[calc(100dvh-9rem)] bg-[#bc688c] p-4 md:p-8 rounded-3xl shadow-2xl flex flex-col gap-6 m-4">
-
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-4">
             {/* Header: title + subtitle on the left, list count on the right */}
-            <div className="shrink-0 flex items-end justify-between gap-4 border-b border-white/20 pb-4">
+            <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide">
+                    <h1 className="font-serif text-3xl leading-tight font-bold text-[#7a0f3d] md:text-4xl">
                         Shared With Me
                     </h1>
-                    <p className="text-xs text-pink-100/80 italic mt-0.5">
+                    <p className="mt-1 text-sm text-[#6b4a58]">
                         To-do lists other people have added you to.
                     </p>
                 </div>
-                <span className="shrink-0 text-xs font-bold bg-white/15 text-white px-3 py-1 rounded-full">
+                <span className="shrink-0 rounded-full bg-pink-100 px-3.5 py-1.5 text-xs font-bold text-[#7a0f3d]">
                     {shared.length} {shared.length === 1 ? "to-do list" : "to-do lists"}
                 </span>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 pr-1">
+            <div className="flex flex-col gap-3">
                 {shared.length === 0 ? (
-                    <p className="text-pink-100/70 text-sm text-center py-12">
+                    <div className="flex items-center justify-center py-12 text-sm font-medium text-[#6b4a58]/70">
                         No one has shared a to-do list with you yet.
-                    </p>
+                    </div>
                 ) : (
                     shared.map((l) => {
                         const count = l.memberIds?.length || 0;
@@ -41,16 +44,20 @@ function SharedLists() {
                             <Link
                                 key={l.id}
                                 to={`/lists/${l.id}`}
-                                className="group flex items-center justify-between gap-3 bg-[#8c4362]/60 hover:bg-[#8c4362] rounded-xl px-4 py-3 text-white font-semibold shadow-sm transition"
+                                className="group flex items-center justify-between gap-3 rounded-2xl border border-pink-100 bg-white px-5 py-4 font-semibold text-[#4a1f33] shadow-sm transition-colors hover:border-pink-300"
                             >
-                                <span className="flex items-center gap-3 min-w-0">
-                                    <span className="truncate">{l.name}</span>
+                                <span className="flex min-w-0 items-center gap-3">
+                                    <span className="truncate text-base transition-colors group-hover:text-[#c2185b]">
+                                        {l.name}
+                                    </span>
                                     {/* Member count pill */}
-                                    <span className="shrink-0 text-xs font-semibold bg-pink-200/20 text-pink-100 px-2.5 py-0.5 rounded-full">
+                                    <span className="shrink-0 rounded-full bg-pink-100 px-2.5 py-0.5 text-xs font-semibold text-[#7a0f3d]">
                                         {count} {count === 1 ? "member" : "members"}
                                     </span>
                                 </span>
-                                <span className="text-pink-200 transition-transform group-hover:translate-x-1">→</span>
+                                <span className="text-[#7a0f3d]/70 transition-all group-hover:translate-x-1 group-hover:text-[#c2185b]">
+                                    →
+                                </span>
                             </Link>
                         );
                     })
