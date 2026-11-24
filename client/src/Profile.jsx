@@ -33,16 +33,16 @@ const NO_FEEDBACK = { error: "", success: "" };
 
 // Shared styles
 const inputClass =
-    "w-full px-3 py-2 rounded-lg bg-white border border-pink-200 text-gray-900 outline-none focus:border-pink-400";
+    "w-full px-3.5 py-2.5 rounded-xl bg-white border border-pink-200 text-sm text-[#4a1f33] placeholder:text-[#6b4a58]/50 outline-none focus:border-[#c2185b] focus:ring-2 focus:ring-pink-200 transition-colors";
 const valueClass =
-    "px-3 py-2 rounded-lg bg-white/70 border border-pink-200 text-gray-900";
-const labelClass = "text-sm font-bold text-[#8c4362]";
+    "px-3.5 py-2.5 rounded-xl bg-pink-50/40 border border-pink-100 text-sm text-[#4a1f33]";
+const labelClass = "text-sm font-semibold text-[#4a1f33]";
 const linkClass =
-    "text-sm font-semibold text-[#bc688c] hover:text-[#8c4362] underline";
+    "text-sm font-semibold text-[#c2185b] hover:text-[#7a0f3d] transition-colors cursor-pointer";
 const saveClass =
-    "px-5 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white font-semibold disabled:opacity-60";
+    "px-4 py-2 rounded-xl bg-[#c2185b] hover:bg-[#a8144d] text-white text-sm font-semibold shadow-md shadow-pink-300/50 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed";
 const cancelClass =
-    "px-5 py-2 rounded-lg bg-pink-100 hover:bg-pink-200 text-[#8c4362] font-semibold";
+    "px-3.5 py-2 rounded-xl text-[#7a0f3d] hover:bg-pink-50 text-sm font-semibold transition-colors cursor-pointer";
 const sectionClass = "flex flex-col gap-2 py-5";
 
 // ---------- Small reusable components ----------
@@ -52,12 +52,12 @@ function Feedback({ error, success }) {
     return (
         <>
             {error && (
-                <p className="text-sm font-semibold text-red-700 bg-red-100 px-3 py-2 rounded-lg">
+                <p className="text-sm font-semibold text-[#b3261e] bg-red-50 border border-red-200 px-3.5 py-2.5 rounded-xl">
                     {error}
                 </p>
             )}
             {success && (
-                <p className="text-sm font-semibold text-green-800 bg-green-100 px-3 py-2 rounded-lg">
+                <p className="text-sm font-semibold text-green-800 bg-green-50 border border-green-200 px-3.5 py-2.5 rounded-xl">
                     {success}
                 </p>
             )}
@@ -68,7 +68,7 @@ function Feedback({ error, success }) {
 // One settings row: label + "Change" link, then whatever children you pass in
 function Section({ label, editing, onEdit, bordered = false, children }) {
     return (
-        <div className={`${sectionClass} ${bordered ? "border-t border-pink-300/50" : ""}`}>
+        <div className={`${sectionClass} ${bordered ? "border-t border-pink-100" : ""}`}>
             <div className="flex items-center justify-between">
                 <span className={labelClass}>{label}</span>
                 {/* Hide the link while the form is open */}
@@ -218,14 +218,14 @@ function Profile() {
     // ---------- Render ----------
 
     return (
-        <div className="w-full max-w-3xl bg-white/50 border border-pink-200 p-4 md:p-8 rounded-3xl shadow-lg flex flex-col gap-2">
+        <div className="w-full max-w-2xl bg-white border border-pink-100 p-6 md:p-8 rounded-2xl shadow-md flex flex-col gap-2">
 
             {/* Header */}
-            <div className="border-b border-pink-300/50 pb-4">
-                <h1 className="text-2xl md:text-3xl font-extrabold text-[#8c4362] tracking-wide">
+            <div className="border-b border-pink-100 pb-4">
+                <h1 className="font-serif text-3xl md:text-4xl font-bold text-[#7a0f3d] leading-tight">
                     Account Settings
                 </h1>
-                <p className="text-xs text-[#8c4362]/70 italic mt-0.5">
+                <p className="text-sm text-[#6b4a58] mt-1">
                     Edit your username, email and password.
                 </p>
             </div>
@@ -239,7 +239,9 @@ function Profile() {
                     onEdit={() => openForm("username")}
                 >
                     {editing !== "username" ? (
-                        <div className={valueClass}>{user.displayName || "Not set"}</div>
+                        <div className={valueClass}>
+                            {user.displayName || <span className="text-[#6b4a58]/70">Not set</span>}
+                        </div>
                     ) : (
                         <form onSubmit={handleChangeUsername} className="flex flex-col gap-3">
                             <input
@@ -254,12 +256,12 @@ function Profile() {
 
                             {/* Only warn if there is an existing username to give up */}
                             {user.displayName && (
-                                <p className="text-xs text-[#8c4362]/80">
+                                <p className="text-xs text-[#6b4a58]">
                                     Your old username will become available to others.
                                 </p>
                             )}
 
-                            <div className="flex gap-2">
+                            <div className="flex justify-end gap-2">
                                 <button type="button" onClick={() => cancelForm("username")} className={cancelClass}>
                                     Cancel
                                 </button>
@@ -283,7 +285,7 @@ function Profile() {
                         <div className={valueClass}>{user.email}</div>
                     ) : (
                         <form onSubmit={handleChangeEmail} className="flex flex-col gap-3">
-                            <p className="text-xs text-[#8c4362]/80">
+                            <p className="text-xs text-[#6b4a58]">
                                 A verification link will be sent to your new email.
                             </p>
 
@@ -306,7 +308,7 @@ function Profile() {
                                 />
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex justify-end gap-2">
                                 <button type="button" onClick={() => cancelForm("email")} className={cancelClass}>
                                     Cancel
                                 </button>
@@ -373,8 +375,8 @@ function Profile() {
                                                 met
                                                     ? "text-green-700 font-semibold"
                                                     : showRuleErrors
-                                                        ? "text-red-700 font-semibold"
-                                                        : "text-[#8c4362]/70"
+                                                        ? "text-[#b3261e] font-semibold"
+                                                        : "text-[#6b4a58]"
                                             }
                                         >
                                             {met ? "✓" : "○"} {req.text}
@@ -383,7 +385,7 @@ function Profile() {
                                 })}
                             </ul>
 
-                            <div className="flex gap-2">
+                            <div className="flex justify-end gap-2">
                                 <button type="button" onClick={() => cancelForm("password")} className={cancelClass}>
                                     Cancel
                                 </button>
