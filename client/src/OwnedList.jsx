@@ -1,7 +1,7 @@
 // DESCRIPTION: Handles creating, deleting, renaming and displaying existing owned lists with counts
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useOwnedLists, createList, deleteList, renameList } from "./ListService";
 
@@ -38,6 +38,7 @@ function TrashIcon() {
 }
 
 export default function OwnedList() {
+    const navigate = useNavigate();
     const [name, setName] = useState(""); //input for creating list
     const [error, setError] = useState(""); //msg feedback
     const [listToDelete, setListToDelete] = useState(null); //for custom pop up del msg
@@ -128,7 +129,7 @@ export default function OwnedList() {
                         className="flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-[#c2185b] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-pink-300/50 transition-colors hover:bg-[#a8144d] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#c2185b]"
                     >
                         <PlusIcon />
-                        Create List
+                        Create list
                     </button>
                 </form>
 
@@ -151,11 +152,13 @@ export default function OwnedList() {
                             return (
                                 <div
                                     key={l.id}
-                                    className="flex items-center justify-between gap-3 rounded-2xl border border-pink-100 bg-white px-5 py-4 shadow-sm transition-colors hover:border-pink-300"
+                                    onClick={() => navigate(`/lists/${l.id}`)}
+                                    className="group flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-pink-100 bg-white px-5 py-4 shadow-sm transition-colors hover:border-[#c2185b] hover:bg-pink-50/60"
                                 >
                                     <Link
                                         to={`/lists/${l.id}`}
-                                        className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-[#4a1f33] transition-colors hover:text-[#c2185b]"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-[#4a1f33] transition-colors group-hover:text-[#c2185b]"
                                     >
                                         <span className="truncate text-base">{l.name}</span>
                                         {/* Member count pill */}
@@ -165,7 +168,10 @@ export default function OwnedList() {
                                     </Link>
 
                                     {/* btn for renaming the list and delete */}
-                                    <div className="flex shrink-0 items-center gap-2">
+                                    <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex shrink-0 items-center gap-2"
+                                    >
                                         <button
                                             onClick={() => startRename(l)}
                                             aria-label={`Edit ${l.name}`}
