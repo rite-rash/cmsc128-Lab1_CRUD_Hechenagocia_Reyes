@@ -16,11 +16,139 @@ import {
 import { db } from "./firebaseConfig";
 import { useAuth } from "./AuthContext";
 
-import TodoForm from './components/TodoForm'; 
+import TodoForm from './components/TodoForm';
 import TodoItem from './components/TodoItem';
+import Breadcrumbs from './components/Breadcrumbs';
+
+// small icons (inline so no extra dependency)
+function ChevronIcon({ className = "" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`w-3.5 h-3.5 ${className}`}
+    >
+      <path d="M5 8l5 5 5-5" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      className="w-4 h-4"
+    >
+      <path d="M10 4v12M4 10h12" />
+    </svg>
+  );
+}
+
+// pill-shaped <select> with a custom chevron
+function FilterSelect({ value, onChange, placeholder, options }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+  const active = value !== 'all';
+  const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const choose = (v) => {
+    onChange(v);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium cursor-pointer transition-colors ${
+          active
+            ? 'bg-[#7a0f3d] border-[#7a0f3d] text-white'
+            : 'bg-white border-pink-200 text-[#4a1f33] hover:bg-pink-50'
+        }`}
+      >
+        {selected ? selected.label : placeholder}
+        <ChevronIcon />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 mt-2 w-44 bg-white border border-pink-200 rounded-2xl shadow-lg overflow-hidden z-10"
+        >
+          {[{ value: 'all', label: 'Any' }, ...options].map((opt) => (
+            <button
+              key={opt.value}
+              role="menuitem"
+              onClick={() => choose(opt.value)}
+              className={`block w-full text-left px-4 py-2 text-sm cursor-pointer ${
+                value === opt.value
+                  ? 'bg-pink-50 text-[#7a0f3d] font-semibold'
+                  : 'text-[#4a1f33] hover:bg-pink-50'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// how long the undo toast stays available before the task is really deleted
+const UNDO_SECONDS = 5;
+
+function TrashIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-5 h-5"
+    >
+      <path d="M4 6h12M8 6V4.5A1.5 1.5 0 0 1 9.5 3h1A1.5 1.5 0 0 1 12 4.5V6M5.5 6l.7 9.2A1.5 1.5 0 0 0 7.7 16.5h4.6a1.5 1.5 0 0 0 1.5-1.3L14.5 6M8.5 9.5v4M11.5 9.5v4" />
+    </svg>
+  );
+}
+
+// returns the due date as a timestamp, or null if the task has no valid due date
+function getDueTime(task) {
+  if (!task.dueDate) return null;
+  const t = new Date(`${task.dueDate}T${task.dueTime || '23:59'}`).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+function isOverdue(task) {
+  const due = getDueTime(task);
+  return task.status !== 'done' && due !== null && due < Date.now();
+}
 
 function Todo() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +160,7 @@ function Todo() {
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [priorityFilter, setFilterByPriority] = useState('all');
   const [categoryFilter, setFilterByCategory] = useState('all');
+  const [now, setNow] = useState(Date.now()); // ticks while a delete is pending (drives the toast countdown)
 
   const sortMenuRef = useRef(null);
 
@@ -42,11 +171,23 @@ function Todo() {
     { value: 'category', label: 'Category' },
   ];
 
+  const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+  ];
+
+  const categoryOptions = [
+    { value: 'school', label: 'School' },
+    { value: 'personal', label: 'Personal' },
+    { value: 'work', label: 'Work' },
+    { value: 'others', label: 'Others' },
+  ];
+
   // FIREBASE: subscribe to this user's tasks in Firestore and keep state in sync in real time
   useEffect(() => {
     if (!user) return;
 
-    // get tasks from that userId
     const q = query(
       collection(db, "tasks"),
       where("userId", "==", user.uid)
@@ -81,11 +222,18 @@ function Todo() {
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // tick every 250ms while at least one delete is pending so the toast countdown updates
+  const hasPendingDeletes = Object.keys(pendingDeletes).length > 0;
+  useEffect(() => {
+    if (!hasPendingDeletes) return;
+
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [hasPendingDeletes]);
 
   // add task to firestore
   const handleAddTask = async (newTaskData) => {
@@ -109,52 +257,42 @@ function Todo() {
     }
   };
 
-  // FIREBASE: flip a task's status between 'done' and 'not started' in Firestore
+  // FIREBASE: flip a task's status between 'done' and 'not started'
   const handleToggleStatus = async (taskId) => {
     const targetTask = tasks.find((t) => t.id === taskId);
-
     if (!targetTask) return;
 
-    const nextStatus =
-      targetTask.status === 'done' ? 'not started' : 'done';
-
-    const taskRef = doc(db, "tasks", taskId);
+    const nextStatus = targetTask.status === 'done' ? 'not started' : 'done';
 
     try {
-      await updateDoc(taskRef, { status: nextStatus });
+      await updateDoc(doc(db, "tasks", taskId), { status: nextStatus });
     } catch (err) {
       console.error("Error updating status:", err);
     }
   };
 
-  // DELETE: called when the user clicks the delete icon on a task; opens the confirmation dialog
-  const handleRequestDelete = (taskId) => {
-    setTaskToDelete(taskId);
-  };
+  // DELETE: opens the confirmation dialog
+  const handleRequestDelete = (taskId) => setTaskToDelete(taskId);
 
-  // DELETE: called when the user confirms in the dialog; kicks off the actual (undo-able) delete
+  // DELETE: user confirmed; start the undo-able delete
   const handleConfirmDelete = () => {
-    if (taskToDelete) {
-      handleDeleteTask(taskToDelete);
-    }
-
+    if (taskToDelete) handleDeleteTask(taskToDelete);
     setTaskToDelete(null);
   };
 
-  // DELETE: called when the user cancels the dialog; just closes it, nothing is deleted
-  const handleCancelDelete = () => {
-    setTaskToDelete(null);
-  };
+  // DELETE: user cancelled; nothing is deleted
+  const handleCancelDelete = () => setTaskToDelete(null);
 
-  // DELETE / FIREBASE: starts a 5s undo window before permanently removing the task from Firestore
+  // DELETE / FIREBASE: hides the task right away, then removes it from Firestore after the undo window
   const handleDeleteTask = (taskId) => {
     if (pendingDeletes[taskId]) return;
 
-    const timeoutId = setTimeout(async () => {
-      const taskRef = doc(db, "tasks", taskId);
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
 
+    const timeoutId = setTimeout(async () => {
       try {
-        await deleteDoc(taskRef);
+        await deleteDoc(doc(db, "tasks", taskId));
       } catch (err) {
         console.error("Error deleting task:", err);
       }
@@ -164,19 +302,22 @@ function Todo() {
         delete next[taskId];
         return next;
       });
-    }, 5000);
+    }, UNDO_SECONDS * 1000);
 
     setPendingDeletes((prev) => ({
       ...prev,
-      [taskId]: timeoutId
+      [taskId]: {
+        timeoutId,
+        taskName: task.taskName,
+        expiresAt: Date.now() + UNDO_SECONDS * 1000,
+      },
     }));
   };
 
-  // UNDO: cancels a pending delete's timeout before it fires, keeping the task alive
+  // UNDO: cancels a pending delete before it fires, so the task reappears
   const handleUndoDelete = (taskId) => {
-    const timeoutId = pendingDeletes[taskId];
-
-    if (timeoutId) clearTimeout(timeoutId);
+    const pending = pendingDeletes[taskId];
+    if (pending) clearTimeout(pending.timeoutId);
 
     setPendingDeletes((prev) => {
       const next = { ...prev };
@@ -186,32 +327,31 @@ function Todo() {
   };
 
   // EDIT: puts a task into edit mode, pre-filling the shared TodoForm
-  const handleStartEdit = (task) => {
-    setEditingTask(task);
-  };
+  const handleStartEdit = (task) => setEditingTask(task);
 
-  // EDIT / FIREBASE: saves the edited fields to Firestore and exits edit mode
+  // EDIT / FIREBASE: saves the edited fields and exits edit mode
   const handleUpdateTask = async (updatedData) => {
     if (!editingTask) return;
 
-    const taskRef = doc(db, "tasks", editingTask.id);
-
     try {
-      await updateDoc(taskRef, updatedData);
+      await updateDoc(doc(db, "tasks", editingTask.id), updatedData);
       setEditingTask(null);
     } catch (err) {
       console.error("Error updating task:", err);
     }
   };
 
-  // FORM: closes the popup for both add and edit, without saving anything
+  // FORM: closes the popup for both add and edit, without saving
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setEditingTask(null);
   };
 
-  // handles filter task
-  const filteredTasks = tasks.filter((task) => {
+  // tasks waiting out their undo window are hidden from the list
+  const visibleTasks = tasks.filter((task) => !pendingDeletes[task.id]);
+
+  // FILTER
+  const filteredTasks = visibleTasks.filter((task) => {
     const matchesPriority =
       priorityFilter === 'all' ||
       task.priority?.toLowerCase() === priorityFilter;
@@ -223,21 +363,14 @@ function Todo() {
     return matchesPriority && matchesCategory;
   });
 
-  // SORT: priority rank used when sorting by priority (lower = higher priority)
-  const priorityOrder = {
-    high: 0,
-    medium: 1,
-    low: 2
-  };
+  // SORT: priority rank (lower = higher priority)
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
 
-  // SORT: derives a sorted copy of the filtered tasks based on the currently selected sortBy key
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     switch (sortBy) {
       case 'dueDate':
-        return (
-          new Date(`${a.dueDate}T${a.dueTime}`) -
-          new Date(`${b.dueDate}T${b.dueTime}`)
-        );
+        // tasks without a valid due date go last
+        return (getDueTime(a) ?? Infinity) - (getDueTime(b) ?? Infinity);
 
       case 'priority':
         return (
@@ -250,14 +383,23 @@ function Todo() {
 
       case 'dateAdded':
       default:
-        return (a.createdAt?.seconds ?? 0) -
-          (b.createdAt?.seconds ?? 0);
+        return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
     }
   });
 
+  // subtitle: "Monday, Nov 23, 2026"
+  const todayLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const allActive = priorityFilter === 'all' && categoryFilter === 'all';
+
   if (loading) {
     return (
-      <div className="text-white text-center py-20 font-semibold">
+      <div className="text-[#7a0f3d] text-center py-20 font-semibold">
         Loading your tasks...
       </div>
     );
@@ -265,133 +407,111 @@ function Todo() {
 
   return (
     <>
-      {/* main container */}
+      <div className="w-full max-w-6xl mx-auto px-4 py-4 flex flex-col gap-5">
 
-      <div className="w-full max-w-6xl max-h-[calc(100dvh-4.5rem)] md:max-h-[calc(100dvh-7rem)] flex-1 bg-[#bc688c] p-4 md:p-8 rounded-3xl shadow-2xl flex flex-col gap-6">
-
-
-        <div className="shrink-0 flex flex-col gap-6">
-
-          {/* header */}
-          <div className="flex justify-between items-center border-b border-pink-400/30 pb-4">
-            <div>
-              <h2 className="text-sm text-pink-100 mb-1">
-                Hello, {user.displayName || user.email}
-              </h2>
-
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide">
-                My Todo List
-              </h1>
-
-              <p className="text-xs text-pink-200/80 italic mt-0.5">
-                {new Date().toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </p>
-            </div>
-
-            {/* All button + priority/category filters */}
-            <div className="flex items-center gap-2 text-xs font-semibold">
-              <button
-                onClick={() => {
-                  setFilterByPriority('all');
-                  setFilterByCategory('all');
-                }}
-                className={`px-3 py-1.5 rounded-lg cursor-pointer transition-colors ${
-                  priorityFilter === 'all' && categoryFilter === 'all'
-                    ? 'bg-pink-500 text-white'
-                    : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
-                }`}
-              >
-                All
-              </button>
-
-              <select
-                value={priorityFilter}
-                onChange={(e) => setFilterByPriority(e.target.value)}
-                className={`px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors ${
-                  priorityFilter !== 'all'
-                    ? 'bg-pink-500 text-white'
-                    : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
-                }`}
-              >
-                <option value="all" className="bg-[#8c4362] text-pink-100">Priority</option>
-                <option value="low" className="bg-[#8c4362] text-pink-100">Low</option>
-                <option value="medium" className="bg-[#8c4362] text-pink-100">Medium</option>
-                <option value="high" className="bg-[#8c4362] text-pink-100">High</option>
-              </select>
-
-              <select
-                value={categoryFilter}
-                onChange={(e) => setFilterByCategory(e.target.value)}
-                className={`px-2 py-1.5 rounded-lg outline-none cursor-pointer transition-colors ${
-                  categoryFilter !== 'all'
-                    ? 'bg-pink-500 text-white'
-                    : 'bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80'
-                }`}
-              >
-                <option value="all" className="bg-[#8c4362] text-pink-100">Category</option>
-                <option value="school" className="bg-[#8c4362] text-pink-100">School</option>
-                <option value="personal" className="bg-[#8c4362] text-pink-100">Personal</option>
-                <option value="work" className="bg-[#8c4362] text-pink-100">Work</option>
-                <option value="others" className="bg-[#8c4362] text-pink-100">Others</option>
-              </select>
-            </div>
-          </div>
-
-          {/* toolbar row: sort menu on the left, add button on the right */}
-          <div className="flex justify-between items-center">
-
-            {/* SORT: dropdown for choosing the active sortBy key */}
-            <div className="relative w-fit" ref={sortMenuRef}>
-              <button
-                onClick={() => setSortMenuOpen((prev) => !prev)}
-                className="flex items-center gap-1 bg-[#8c4362]/60 text-pink-100 text-xs font-semibold px-2 py-1.5 rounded-lg cursor-pointer hover:bg-[#8c4362]/80 transition-colors"
-              >
-                Sort by
-                <span className="text-[10px]">▾</span>
-              </button>
-
-              {sortMenuOpen && (
-                <div className="absolute mt-1 w-44 bg-[#8c4362] rounded-lg shadow-lg overflow-hidden z-10">
-                  {sortOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => {
-                        setSortBy(opt.value);
-                        setSortMenuOpen(false);
-                      }}
-                      className={`block w-full text-left px-4 py-2.5 text-sm ${
-                        sortBy === opt.value
-                          ? 'bg-pink-500 text-white font-semibold'
-                          : 'text-pink-100 hover:bg-[#6e324c]'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* ADD: opens the popup with a blank form */}
-            <button
-              onClick={() => setIsFormOpen(true)}
-              className="bg-pink-500 hover:bg-pink-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer"
-            >
-              + Add New Task
-            </button>
-          </div>
-
+        {/* breadcrumbs */}
+        <div className="-mb-2">
+          <Breadcrumbs items={[{ label: 'Personal list' }]} />
         </div>
 
-        {/* task cards, rendered in filtered + sorted order */}
-        <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto pr-1">
+        {/* header */}
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-3xl md:text-4xl font-bold text-[#7a0f3d] leading-tight">
+              My tasks
+            </h1>
+
+            <p className="text-sm text-[#6b4a58] mt-1">
+              {todayLabel}
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsFormOpen(true)}
+            className="shrink-0 flex items-center gap-2 bg-[#c2185b] hover:bg-[#a8144d] text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-pink-300/50 transition-colors cursor-pointer"
+          >
+            <PlusIcon />
+            Add new task
+          </button>
+        </div>
+
+        {/* filters (left) + sort (right) */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => {
+                setFilterByPriority('all');
+                setFilterByCategory('all');
+              }}
+              aria-pressed={allActive}
+              className={`rounded-full border px-4 py-2 text-sm font-semibold cursor-pointer transition-colors ${
+                allActive
+                  ? 'bg-[#7a0f3d] border-[#7a0f3d] text-white'
+                  : 'bg-white border-pink-200 text-[#4a1f33] hover:bg-pink-50'
+              }`}
+            >
+              All
+            </button>
+
+            <FilterSelect
+              value={priorityFilter}
+              onChange={setFilterByPriority}
+              placeholder="Priority"
+              options={priorityOptions}
+            />
+
+            <FilterSelect
+              value={categoryFilter}
+              onChange={setFilterByCategory}
+              placeholder="Category"
+              options={categoryOptions}
+            />
+          </div>
+
+          {/* SORT dropdown */}
+          <div className="relative" ref={sortMenuRef}>
+            <button
+              onClick={() => setSortMenuOpen((prev) => !prev)}
+              aria-haspopup="menu"
+              aria-expanded={sortMenuOpen}
+              className="flex items-center gap-2 rounded-full border border-pink-200 bg-white px-4 py-2 text-sm font-medium text-[#4a1f33] cursor-pointer hover:bg-pink-50 transition-colors"
+            >
+              Sort by
+              <ChevronIcon />
+            </button>
+
+            {sortMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 mt-2 w-44 bg-white border border-pink-200 rounded-2xl shadow-lg overflow-hidden z-10"
+              >
+                {sortOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    role="menuitem"
+                    onClick={() => {
+                      setSortBy(opt.value);
+                      setSortMenuOpen(false);
+                    }}
+                    className={`block w-full text-left px-4 py-2 text-sm cursor-pointer ${
+                      sortBy === opt.value
+                        ? 'bg-pink-50 text-[#7a0f3d] font-semibold'
+                        : 'text-[#4a1f33] hover:bg-pink-50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* task cards, filtered + sorted */}
+        <div className="flex flex-col gap-3">
           {filteredTasks.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-pink-200/60 font-medium text-sm py-12">
-              {tasks.length === 0
+            <div className="flex items-center justify-center text-[#6b4a58]/70 font-medium text-sm py-12">
+              {visibleTasks.length === 0
                 ? "No tasks added yet. Create now!"
                 : "No tasks match this filter."}
             </div>
@@ -400,11 +520,10 @@ function Todo() {
               <TodoItem
                 key={task.id}
                 task={task}
+                isOverdue={isOverdue(task)}
                 onToggleStatus={handleToggleStatus}
                 onDelete={handleRequestDelete}
-                onUndo={handleUndoDelete}
                 onEdit={handleStartEdit}
-                isPendingDelete={!!pendingDeletes[task.id]}
               />
             ))
           )}
@@ -414,11 +533,11 @@ function Todo() {
       {/* ADD / EDIT: popup containing the form */}
       {(isFormOpen || editingTask) && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-[#3a1426]/50 flex items-center justify-center z-50 p-4"
           onClick={handleCloseForm}
         >
           <div
-            className="w-full max-w-3xl"
+            className="w-full max-w-[44rem]"
             onClick={(e) => e.stopPropagation()}
           >
             {editingTask ? (
@@ -443,27 +562,41 @@ function Todo() {
 
       {/* DELETE: confirmation modal */}
       {taskToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#bc688c] rounded-2xl shadow-2xl p-6 w-80 flex flex-col gap-4">
-            <h2 className="text-white font-bold text-lg">
+        <div
+          className="fixed inset-0 bg-[#3d0a22]/45 flex items-center justify-center z-50 p-4"
+          onClick={handleCancelDelete}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-title"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-2xl p-5 md:p-6 w-full max-w-md flex flex-col gap-4"
+          >
+            <div className="w-9 h-9 rounded-full bg-pink-100 text-[#b3261e] flex items-center justify-center">
+              <TrashIcon />
+            </div>
+
+            <h2 id="delete-title" className="font-serif text-[#7a0f3d] font-bold text-xl">
               Delete this task?
             </h2>
 
-            <p className="text-pink-100 text-sm">
-              This can't be undone after a few seconds.
+            <p className="text-[#6b4a58] text-sm">
+              “{tasks.find((t) => t.id === taskToDelete)?.taskName}” will be removed from your
+              list. You’ll have {UNDO_SECONDS} seconds to undo.
             </p>
 
-            <div className="flex justify-end gap-2 mt-2">
+            <div className="flex justify-end items-center gap-2 mt-1">
               <button
                 onClick={handleCancelDelete}
-                className="px-4 py-2 rounded-lg text-pink-100 hover:bg-[#8c4362]/60 text-sm font-semibold"
+                className="px-3 py-2 rounded-xl text-[#7a0f3d] hover:bg-pink-50 text-sm font-semibold cursor-pointer"
               >
                 Cancel
               </button>
 
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold"
+                className="px-4 py-2 rounded-xl bg-[#b3261e] hover:bg-[#8f1d17] text-white text-sm font-semibold shadow-md shadow-red-300/50 cursor-pointer"
               >
                 Delete
               </button>
@@ -471,6 +604,48 @@ function Todo() {
           </div>
         </div>
       )}
+
+      {/* UNDO: toast(s) shown while a delete is waiting out its undo window */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed bottom-6 inset-x-0 z-40 flex flex-col items-center gap-2 px-4 pointer-events-none"
+      >
+        {Object.entries(pendingDeletes).map(([taskId, pending]) => {
+          const secondsLeft = Math.min(
+            UNDO_SECONDS,
+            Math.max(0, Math.ceil((pending.expiresAt - now) / 1000))
+          );
+
+          return (
+            <div
+              key={taskId}
+              className="pointer-events-auto w-full max-w-sm flex items-center gap-3 bg-[#3d1226] text-white rounded-2xl shadow-xl px-4 py-3"
+            >
+              <span
+                aria-hidden="true"
+                className="shrink-0 w-7 h-7 rounded-full border-2 border-pink-200/70 flex items-center justify-center text-xs font-semibold"
+              >
+                {secondsLeft}
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold truncate">“{pending.taskName}” deleted</p>
+                <p className="text-xs text-pink-100/80">
+                  Undo available for {secondsLeft} more {secondsLeft === 1 ? 'second' : 'seconds'}
+                </p>
+              </div>
+
+              <button
+                onClick={() => handleUndoDelete(taskId)}
+                className="shrink-0 px-2 py-1 rounded-lg text-sm font-semibold text-white hover:bg-white/10 cursor-pointer"
+              >
+                Undo
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </>
   );
 }
