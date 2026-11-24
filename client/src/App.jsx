@@ -10,7 +10,7 @@ import Login from "./Login";
 import Todo from "./Todo";
 import Profile from "./Profile";
 
-import Register from "./register";
+import Register from "./Register";
 import ForgotPassword from "./ForgotPassword";
 
 import OwnedList from "./OwnedList";
