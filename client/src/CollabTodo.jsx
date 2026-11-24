@@ -1,35 +1,113 @@
-//DESCRIPTION: loads list for both "owned by me" and "shared with me"
-//          also allows actions: add, edit, check off, delete tasks
+// DESCRIPTION: loads list for both "owned by me" and "shared with me"
+//              also allows actions: add, edit, check off, delete tasks
 
 import { useState, useEffect, useRef } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { useAuth } from "./AuthContext";
 import {
-    useListTasks, useUserNames, addListTask, updateListTask,
-    toggleListTaskStatus, deleteListTask,
+    useListTasks,
+    useUserNames,
+    addListTask,
+    updateListTask,
+    toggleListTaskStatus,
+    deleteListTask,
 } from "./ListService";
-
 
 import ListMembers from "./ListMembers";
 import TodoForm from "./components/TodoForm";
 import TodoItem from "./components/TodoItem";
+import Breadcrumbs from "./components/Breadcrumbs";
+import FilterSelect from "./components/FilterSelect";
+
+//helper functions for due dates & overdue 
+function getDueTime(task) {
+    if (!task.dueDate) return null;
+    if (typeof task.dueDate?.toDate === "function") {
+        return task.dueDate.toDate().getTime();
+    }
+    const timeStr = task.dueTime || "23:59";
+    const parsed = new Date(`${task.dueDate}T${timeStr}`).getTime();
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isOverdue(task) {
+    if (task.completed) return false;
+    const due = getDueTime(task);
+    return due !== null && due < Date.now();
+}
 
 
-// Button styles shared with OwnedList / TodoItem so the whole app feels consistent
-const focusRing = "focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-200/80";
+function ChevronIcon() {
+    return (
+        <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="h-3.5 w-3.5"
+        >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 8l4 4 4-4" />
+        </svg>
+    );
+}
 
-const btnBase = `rounded-lg text-xs font-semibold transition-colors cursor-pointer ${focusRing}`;
-const btnPrimary = `${btnBase} px-4 py-2 text-white bg-pink-500 hover:bg-pink-600`;
-const btnCancel  = `${btnBase} px-4 py-2 text-pink-100 hover:text-white bg-[#59243e] hover:bg-[#59243e]/70`;
-const btnDanger  = `${btnBase} px-4 py-2 text-white bg-rose-600 hover:bg-rose-700`;
+function PlusIcon() {
+    return (
+        <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            className="h-4 w-4"
+        >
+            <path strokeLinecap="round" d="M10 4v12M4 10h12" />
+        </svg>
+    );
+}
 
-// Toolbar chips (back, members, sort, filters). Active = pink, idle = muted plum
-const chip       = `${btnBase} inline-flex items-center gap-2 px-3 py-1.5`;
-const chipIdle   = "bg-[#8c4362]/60 text-pink-100 hover:bg-[#8c4362]/80 hover:text-white";
-const chipActive = "bg-pink-500 text-white hover:bg-pink-600";
+function UsersIcon() {
+    return (
+        <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="h-4 w-4"
+        >
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+            />
+            <circle cx="9" cy="7" r="4" />
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+            />
+        </svg>
+    );
+}
 
+function TrashIcon() {
+    return (
+        <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            className="h-5 w-5"
+        >
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m2 0v9.5A1.5 1.5 0 0112.5 17h-5A1.5 1.5 0 016 15.5V6"
+            />
+        </svg>
+    );
+}
 
 function CollabTodo() {
     const { listId } = useParams();
@@ -40,33 +118,45 @@ function CollabTodo() {
     const [editingTask, setEditingTask] = useState(null);
     const [actionError, setActionError] = useState("");
 
-    const [isFormOpen, setIsFormOpen] = useState(false);          // add/edit popup (same as Todo.jsx)
-    const [isMembersOpen, setIsMembersOpen] = useState(false);    // members popup (new)
-    const [taskToDelete, setTaskToDelete] = useState(null);       // task waiting for delete confirmation
-    const [sortBy, setSortBy] = useState('dateAdded');
+    const [isFormOpen, setIsFormOpen] = useState(false); // add/edit popup
+    const [isMembersOpen, setIsMembersOpen] = useState(false); // members popup
+    const [taskToDelete, setTaskToDelete] = useState(null); // 
+    const [sortBy, setSortBy] = useState("dateAdded");
     const [sortMenuOpen, setSortMenuOpen] = useState(false);
-    const [priorityFilter, setFilterByPriority] = useState('all');
-    const [categoryFilter, setFilterByCategory] = useState('all');
+    const [priorityFilter, setFilterByPriority] = useState("all");
+    const [categoryFilter, setFilterByCategory] = useState("all");
     const sortMenuRef = useRef(null);
 
     const sortOptions = [
-        { value: 'dateAdded', label: 'Date Added' },
-        { value: 'dueDate', label: 'Due Date' },
-        { value: 'priority', label: 'Priority' },
-        { value: 'category', label: 'Category' },
+        { value: "dateAdded", label: "Date Added" },
+        { value: "dueDate", label: "Due Date" },
+        { value: "priority", label: "Priority" },
+        { value: "category", label: "Category" },
     ];
 
-    const names = useUserNames(list?.memberIds); //? to not crash if undefined since initially list is null
+    const priorityOptions = [
+        { value: "low", label: "Low" },
+        { value: "medium", label: "Medium" },
+        { value: "high", label: "High" },
+    ];
+
+    const categoryOptions = [
+        { value: "school", label: "School" },
+        { value: "personal", label: "Personal" },
+        { value: "work", label: "Work" },
+        { value: "others", label: "Others" },
+    ];
+
+    const names = useUserNames(list?.memberIds); // ? to not crash if undefined since initially list is null
 
     useEffect(() => {
         return onSnapshot(
             doc(db, "lists", listId),
             (snap) => snap.exists() && setList({ id: snap.id, ...snap.data() }),
-            () => {} // ListGuard already handles access
+            () => {}, // ListGuard already handles access
         );
     }, [listId]);
 
-    
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (sortMenuRef.current && !sortMenuRef.current.contains(e.target)) {
@@ -74,24 +164,33 @@ function CollabTodo() {
             }
         };
 
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
 
     const run = async (fn) => {
         setActionError("");
-        try { await fn(); } catch (err) { setActionError(err.message); }
+        try {
+            await fn();
+        } catch (err) {
+            setActionError(err.message);
+        }
     };
 
     if (tasksError) return <Navigate to="/" replace />;
-    if (!list) return <p className="text-white font-semibold p-8">Loading...</p>;
+
+    if (!list) {
+        return (
+            <div className="py-20 text-center font-semibold text-[#7a0f3d]">
+                Loading list...
+            </div>
+        );
+    }
 
     const isOwner = list?.ownerId === user.uid;
     const memberCount = list.memberIds?.length || 0;
-    const filtersActive = priorityFilter !== 'all' || categoryFilter !== 'all';
-    const currentSortLabel = sortOptions.find((o) => o.value === sortBy)?.label;
-
+    const allActive = priorityFilter === "all" && categoryFilter === "all";
+    const taskPendingDeletion = tasks.find((t) => t.id === taskToDelete);
 
     const handleRequestDelete = (taskId) => setTaskToDelete(taskId);
 
@@ -102,25 +201,19 @@ function CollabTodo() {
 
     const handleCancelDelete = () => setTaskToDelete(null);
 
-
     const handleCloseForm = () => {
         setIsFormOpen(false);
         setEditingTask(null);
     };
 
-    const clearFilters = () => {
-        setFilterByPriority('all');
-        setFilterByCategory('all');
-    };
-
     // handles filter task
     const filteredTasks = tasks.filter((task) => {
         const matchesPriority =
-            priorityFilter === 'all' ||
+            priorityFilter === "all" ||
             task.priority?.toLowerCase() === priorityFilter;
 
         const matchesCategory =
-            categoryFilter === 'all' ||
+            categoryFilter === "all" ||
             task.category?.toLowerCase() === categoryFilter;
 
         return matchesPriority && matchesCategory;
@@ -132,13 +225,16 @@ function CollabTodo() {
     // SORT: derives a sorted copy of the filtered tasks based on the currently selected sortBy key
     const sortedTasks = [...filteredTasks].sort((a, b) => {
         switch (sortBy) {
-            case 'dueDate':
-                return new Date(`${a.dueDate}T${a.dueTime}`) - new Date(`${b.dueDate}T${b.dueTime}`);
-            case 'priority':
-                return (priorityOrder[a.priority?.toLowerCase()] ?? 3) - (priorityOrder[b.priority?.toLowerCase()] ?? 3);
-            case 'category':
-                return (a.category || '').localeCompare(b.category || '');
-            case 'dateAdded':
+            case "dueDate":
+                return (getDueTime(a) ?? Infinity) - (getDueTime(b) ?? Infinity);
+            case "priority":
+                return (
+                    (priorityOrder[a.priority?.toLowerCase()] ?? 3) -
+                    (priorityOrder[b.priority?.toLowerCase()] ?? 3)
+                );
+            case "category":
+                return (a.category || "").localeCompare(b.category || "");
+            case "dateAdded":
             default:
                 return (a.createdAt?.seconds ?? 0) - (b.createdAt?.seconds ?? 0);
         }
@@ -146,169 +242,188 @@ function CollabTodo() {
 
     return (
         <>
-            {/* main container */}
-            <div className="w-full max-w-6xl flex-1 bg-[#bc688c] p-4 md:p-8 rounded-3xl shadow-2xl flex flex-col gap-6">
 
-                {/* header: back on its own row, then title + role on the left, members on the right */}
-                <div className="flex flex-col gap-3 border-b border-white/20 pb-4">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-4">
+                {/* breadcrumbs */}
+                <div className="-mb-2">
+                    <Breadcrumbs
+                        items={[
+                            {
+                                label: isOwner ? "Owned by me" : "Shared with me",
+                                to: isOwner ? "/collab/owned" : "/collab/shared",
+                            },
+                            { label: list.name },
+                        ]}
+                    />
+                </div>
 
-                    <Link
-                        to={isOwner ? "/collab/owned" : "/collab/shared"}
-                        className={`${chip} ${chipIdle} self-start`}
-                    >
-                        <span aria-hidden="true">←</span> Back
-                    </Link>
 
-                    <div className="flex items-end justify-between gap-4">
-                        <div className="min-w-0">
-                            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-wide truncate">
-                                {list.name}
-                            </h1>
-                        </div>
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div className="min-w-0">
+                        <h1 className="truncate font-serif text-3xl leading-tight font-bold text-[#7a0f3d] md:text-4xl">
+                            {list.name}
+                        </h1>
+                        {/* [ownership and member count  */}
+                        <p className="mt-1 text-sm text-[#6b4a58]">
+                            {isOwner
+                                ? "Owned by you"
+                                : `Shared by ${names[list.ownerId] || "owner"}`}{" "}
+                            · {memberCount} {memberCount === 1 ? "member" : "members"}
+                        </p>
+                    </div>
 
-                        {/* opens popup with the member list (and the add form for the owner) */}
+                    <div className="flex shrink-0 items-center gap-2.5">
+
                         <button
                             onClick={() => setIsMembersOpen(true)}
-                            className={`${chip} ${chipIdle} shrink-0`}
+                            className="flex cursor-pointer items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2.5 text-sm font-semibold text-[#7a0f3d] transition-colors hover:bg-pink-50"
                         >
-                            {/* people icon */}
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
-                                <circle cx="10" cy="7" r="4" />
-                                <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                            </svg>
+                            <UsersIcon />
                             {isOwner ? "Manage members" : "Members"}
-                            <span className="text-[11px] font-bold bg-pink-200/20 text-pink-100 px-2 py-0.5 rounded-full">
+                            <span className="rounded-full bg-pink-100 px-2 py-0.5 text-xs font-bold text-[#7a0f3d]">
                                 {memberCount}
                             </span>
+                        </button>
+
+                        {/* add new taskk*/}
+                        <button
+                            onClick={() => setIsFormOpen(true)}
+                            className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#c2185b] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-pink-300/50 transition-colors hover:bg-[#a8144d]"
+                        >
+                            <PlusIcon />
+                            Add new task
                         </button>
                     </div>
                 </div>
 
-                {actionError && <p className="text-pink-100 text-sm">{actionError}</p>}
+                {actionError && (
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-[#b3261e]">
+                        {actionError}
+                    </p>
+                )}
 
-                {/* toolbar: sort + filters on the left, add task on the right */}
+                {/* filter &sort bar */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
-
                     <div className="flex flex-wrap items-center gap-2">
+                        {/* all*/}
+                        <button
+                            onClick={() => {
+                                setFilterByPriority("all");
+                                setFilterByCategory("all");
+                            }}
+                            aria-pressed={allActive}
+                            className={`cursor-pointer rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                                allActive
+                                    ? "border-[#7a0f3d] bg-[#7a0f3d] text-white"
+                                    : "border-pink-200 bg-white text-[#4a1f33] hover:bg-pink-50"
+                            }`}
+                        >
+                            All
+                        </button>
 
-                        {/* SORT: dropdown for choosing the active sortBy key */}
-                        <div className="relative w-fit" ref={sortMenuRef}>
-                            <button
-                                onClick={() => setSortMenuOpen((prev) => !prev)}
-                                aria-haspopup="listbox"
-                                aria-expanded={sortMenuOpen}
-                                className={`${chip} ${chipIdle}`}
-                            >
-                                Sort: {currentSortLabel}
-                                <span className="text-[10px]">▾</span>
-                            </button>
-
-                            {sortMenuOpen && (
-                                <div className="absolute mt-1 w-44 bg-[#8c4362] rounded-lg shadow-lg overflow-hidden z-10">
-                                    {sortOptions.map((opt) => (
-                                        <button
-                                            key={opt.value}
-                                            onClick={() => {
-                                                setSortBy(opt.value);
-                                                setSortMenuOpen(false);
-                                            }}
-                                            className={`block w-full text-left px-4 py-2.5 text-sm cursor-pointer transition-colors ${
-                                                sortBy === opt.value
-                                                    ? 'bg-pink-500 text-white font-semibold'
-                                                    : 'text-pink-100 hover:bg-[#6e324c]'
-                                            }`}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* priority / category filters (pink when active) */}
-                        <select
+                        {/* pass props to custom FilterSelect for unif*/}
+                        <FilterSelect
                             value={priorityFilter}
-                            onChange={(e) => setFilterByPriority(e.target.value)}
-                            aria-label="Filter by priority"
-                            className={`${chip} ${priorityFilter !== 'all' ? chipActive : chipIdle}`}
-                        >
-                            <option value="all" className="bg-[#8c4362] text-pink-100">Priority</option>
-                            <option value="low" className="bg-[#8c4362] text-pink-100">Low</option>
-                            <option value="medium" className="bg-[#8c4362] text-pink-100">Medium</option>
-                            <option value="high" className="bg-[#8c4362] text-pink-100">High</option>
-                        </select>
+                            onChange={setFilterByPriority}
+                            placeholder="Priority"
+                            options={priorityOptions}
+                        />
 
-                        <select
+                        <FilterSelect
                             value={categoryFilter}
-                            onChange={(e) => setFilterByCategory(e.target.value)}
-                            aria-label="Filter by category"
-                            className={`${chip} ${categoryFilter !== 'all' ? chipActive : chipIdle}`}
-                        >
-                            <option value="all" className="bg-[#8c4362] text-pink-100">Category</option>
-                            <option value="school" className="bg-[#8c4362] text-pink-100">School</option>
-                            <option value="personal" className="bg-[#8c4362] text-pink-100">Personal</option>
-                            <option value="work" className="bg-[#8c4362] text-pink-100">Work</option>
-                            <option value="others" className="bg-[#8c4362] text-pink-100">Others</option>
-                        </select>
-
-                        {/* only shows when a filter is on, so it's not extra clutter otherwise */}
-                        {filtersActive && (
-                            <button
-                                onClick={clearFilters}
-                                className={`${btnBase} px-2 py-1.5 text-pink-100 hover:text-white underline underline-offset-2`}
-                            >
-                                Clear filters
-                            </button>
-                        )}
+                            onChange={setFilterByCategory}
+                            placeholder="Category"
+                            options={categoryOptions}
+                        />
                     </div>
 
-                    {/* ADD: opens the popup with a blank form */}
-                    <button onClick={() => setIsFormOpen(true)} className={btnPrimary}>
-                        + Add New Task
-                    </button>
+                    {/* SORT dropdown */}
+                    <div className="relative" ref={sortMenuRef}>
+                        <button
+                            onClick={() => setSortMenuOpen((prev) => !prev)}
+                            aria-haspopup="menu"
+                            aria-expanded={sortMenuOpen}
+                            className="flex cursor-pointer items-center gap-2 rounded-full border border-pink-200 bg-white px-4 py-2 text-sm font-medium text-[#4a1f33] transition-colors hover:bg-pink-50"
+                        >
+                            Sort by
+                            <ChevronIcon />
+                        </button>
+
+                        {sortMenuOpen && (
+                            <div
+                                role="menu"
+                                className="absolute right-0 z-10 mt-2 w-44 overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-lg"
+                            >
+                                {sortOptions.map((opt) => (
+                                    <button
+                                        key={opt.value}
+                                        role="menuitem"
+                                        onClick={() => {
+                                            setSortBy(opt.value);
+                                            setSortMenuOpen(false);
+                                        }}
+                                        className={`block w-full cursor-pointer px-4 py-2 text-left text-sm ${
+                                            sortBy === opt.value
+                                                ? "bg-pink-50 font-semibold text-[#7a0f3d]"
+                                                : "text-[#4a1f33] hover:bg-pink-50"
+                                        }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex flex-col gap-3 min-h-[200px]">
+                {/* Task list */}
+                <div className="flex flex-col gap-3">
                     {filteredTasks.length === 0 ? (
-                        <p className="text-pink-100/70 text-sm text-center py-12">
-                            {tasks.length === 0 ? "No tasks in this list yet." : "No tasks match this filter."}
-                        </p>
+                        <div className="flex items-center justify-center py-12 text-sm font-medium text-[#6b4a58]/70">
+                            {tasks.length === 0
+                                ? "No tasks in this list yet. Create one now!"
+                                : "No tasks match this filter."}
+                        </div>
                     ) : (
-                        //del task
-                        //use popup instead
                         sortedTasks.map((task) => (
                             <TodoItem
                                 key={task.id}
                                 task={task}
-                                onToggleStatus={() => run(() => toggleListTaskStatus(listId, task))}
+                                isOverdue={isOverdue(task)}  //highlight overdue same w todo
+                                onToggleStatus={() =>
+                                    run(() => toggleListTaskStatus(listId, task))
+                                }
                                 onDelete={handleRequestDelete}
-                                onUndo={() => {}}
                                 onEdit={setEditingTask}
-                                isPendingDelete={false}
                             />
                         ))
                     )}
                 </div>
             </div>
 
-            {/* members popup  */}
+
             {isMembersOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-[#3d0a22]/45 p-4"
                     onClick={() => setIsMembersOpen(false)}
                 >
                     <div
-                        className="w-full max-w-lg bg-[#bc688c] rounded-2xl shadow-2xl p-6 flex flex-col gap-5"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="members-title"
+                        className="flex w-full max-w-lg flex-col gap-5 rounded-2xl bg-white p-5 shadow-2xl md:p-6"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-white font-extrabold text-xl">Members</h2>
+                        <div className="flex items-center justify-between border-b border-pink-100 pb-3">
+                            <h2
+                                id="members-title"
+                                className="font-serif text-xl font-bold text-[#7a0f3d]"
+                            >
+                                {isOwner ? "Manage members" : "List members"}
+                            </h2>
                             <button
                                 onClick={() => setIsMembersOpen(false)}
-                                className={`${btnBase} px-4 py-2 text-pink-100 hover:text-white bg-[#59243e] hover:bg-[#59243e]/70`}
+                                className="cursor-pointer rounded-xl px-3 py-1.5 text-sm font-semibold text-[#7a0f3d] hover:bg-pink-50"
                             >
                                 Close
                             </button>
@@ -322,14 +437,13 @@ function CollabTodo() {
 
             {(isFormOpen || editingTask) && (
                 <div
-                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-[#3a1426]/50 p-4"
                     onClick={handleCloseForm}
                 >
                     <div
-                        className="w-full max-w-3xl"
+                        className="w-full max-w-[44rem]"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* check state first  */}
                         {editingTask ? (
                             <TodoForm
                                 key={editingTask.id}
@@ -344,8 +458,6 @@ function CollabTodo() {
                                 buttonText="Save Changes"
                             />
                         ) : (
-
-                            //creating task
                             <TodoForm
                                 key="new"
                                 onSubmit={(data) =>
@@ -357,30 +469,53 @@ function CollabTodo() {
                                 onCancel={handleCloseForm}
                                 buttonText="Add Task"
                             />
-
                         )}
                     </div>
                 </div>
             )}
 
-            
+            {/* del task */}
             {taskToDelete && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-[#bc688c] rounded-2xl shadow-2xl p-6 w-80 flex flex-col gap-4">
-                        <h2 className="text-white font-bold text-lg">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-[#3d0a22]/45 p-4"
+                    onClick={handleCancelDelete}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-title"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex w-full max-w-md flex-col gap-4 rounded-2xl bg-white p-5 shadow-2xl md:p-6"
+                    >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-pink-100 text-[#b3261e]">
+                            <TrashIcon />
+                        </div>
+
+                        <h2
+                            id="delete-title"
+                            className="font-serif text-xl font-bold text-[#7a0f3d]"
+                        >
                             Delete this task?
                         </h2>
 
-                        <p className="text-pink-100 text-sm">
-                            This can't be undone.
+                        <p className="text-sm text-[#6b4a58]">
+                            {taskPendingDeletion
+                                ? `“${taskPendingDeletion.taskName}” will be permanently removed from this list.`
+                                : "This task will be permanently removed from this list."}
                         </p>
 
-                        <div className="flex justify-end gap-2 mt-2">
-                            <button onClick={handleCancelDelete} className={btnCancel}>
+                        <div className="mt-1 flex items-center justify-end gap-2">
+                            <button
+                                onClick={handleCancelDelete}
+                                className="cursor-pointer rounded-xl px-3 py-2 text-sm font-semibold text-[#7a0f3d] hover:bg-pink-50"
+                            >
                                 Cancel
                             </button>
 
-                            <button onClick={handleConfirmDelete} className={btnDanger}>
+                            <button
+                                onClick={handleConfirmDelete}
+                                className="cursor-pointer rounded-xl bg-[#b3261e] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-red-300/50 hover:bg-[#8f1d17]"
+                            >
                                 Delete
                             </button>
                         </div>
