@@ -4,6 +4,23 @@ import { Link } from "react-router-dom";
 
 import { useSharedLists } from "./ListService";
 
+function ChevronRightIcon() {
+    return (
+        <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5"
+        >
+            <path d="M7.5 4.5l5.5 5.5-5.5 5.5" />
+        </svg>
+    );
+}
+
 function SharedLists() {
     const { lists: shared, loading } = useSharedLists();
 
@@ -44,7 +61,7 @@ function SharedLists() {
                             <Link
                                 key={l.id}
                                 to={`/lists/${l.id}`}
-                                className="group flex items-center justify-between gap-3 rounded-2xl border border-pink-100 bg-white px-5 py-4 font-semibold text-[#4a1f33] shadow-sm transition-colors hover:border-pink-300"
+                                className="group flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-pink-100 bg-white px-5 py-4 font-semibold text-[#4a1f33] shadow-sm transition-colors hover:border-[#c2185b] hover:bg-pink-50/60"
                             >
                                 <span className="flex min-w-0 items-center gap-3">
                                     <span className="truncate text-base transition-colors group-hover:text-[#c2185b]">
@@ -55,8 +72,8 @@ function SharedLists() {
                                         {count} {count === 1 ? "member" : "members"}
                                     </span>
                                 </span>
-                                <span className="text-[#7a0f3d]/70 transition-all group-hover:translate-x-1 group-hover:text-[#c2185b]">
-                                    →
+                                <span className="text-[#7a0f3d]/70 transition-all group-hover:translate-x-0.5 group-hover:text-[#c2185b]">
+                                    <ChevronRightIcon />
                                 </span>
                             </Link>
                         );
